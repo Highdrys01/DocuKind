@@ -6,6 +6,13 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: "es2022",
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name][extname]"
+      }
+    }
   }
 });

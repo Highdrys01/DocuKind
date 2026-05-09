@@ -48,7 +48,7 @@ function Header() {
           <Icon name="ShieldCheck" size={16} />
           No uploads
         </span>
-        <a className="ghost-link" href="https://github.com/Highdrys01/PDF-IMG" target="_blank" rel="noreferrer">
+        <a className="ghost-link" href="https://github.com/Highdrys01/DocuKind" target="_blank" rel="noreferrer">
           <Icon name="Github" size={16} />
           GitHub
         </a>

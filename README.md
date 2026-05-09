@@ -7,7 +7,7 @@ DocuKind is a free browser PDF and image toolkit that can be hosted on GitHub Pa
 After GitHub Pages is enabled, the public app will be available at:
 
 ```text
-https://highdrys01.github.io/PDF-IMG/
+https://highdrys01.github.io/DocuKind/
 ```
 
 Basic workflow:
@@ -110,9 +110,9 @@ To publish:
 4. Set **Build and deployment** source to **GitHub Actions**.
 5. Open the **Actions** tab and run the deploy workflow, or push a new commit to `main`.
 6. Wait for the workflow to finish.
-7. Open `https://highdrys01.github.io/PDF-IMG/`.
+7. Open `https://highdrys01.github.io/DocuKind/`.
 
-First deploy note: if the workflow fails with `Not Found` during **Configure Pages** or **Deploy to GitHub Pages**, Pages is still disabled for the repository. Open `https://github.com/Highdrys01/PDF-IMG/settings/pages`, set the source to **GitHub Actions**, then rerun the workflow.
+First deploy note: if the workflow fails with `Not Found` during **Configure Pages** or **Deploy to GitHub Pages**, Pages is still disabled for the repository. Open `https://github.com/Highdrys01/DocuKind/settings/pages`, set the source to **GitHub Actions**, then rerun the workflow.
 
 ## Privacy Model
 
@@ -140,6 +140,7 @@ Server-grade Office conversion, true PDF repair, full existing-text editing, OCR
 - If an image tool will not run, the image may be too large for the browser canvas memory available on the current device.
 - If raster compression is used, selectable text and form fields will not be preserved.
 - If GitHub Pages shows a 404, confirm Pages is set to **GitHub Actions** and the deploy workflow completed successfully.
+- If you renamed the repository, use the new project URL. The old `/PDF-IMG/` path will 404 after the repo is renamed to `DocuKind`.
 
 ## License
 
