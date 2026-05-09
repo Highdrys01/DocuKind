@@ -90,6 +90,8 @@ To publish:
 6. Wait for the workflow to finish.
 7. Open `https://highdrys01.github.io/PDF-IMG/`.
 
+First deploy note: if the workflow fails with `Not Found` during **Configure Pages** or **Deploy to GitHub Pages**, Pages is still disabled for the repository. Open `https://github.com/Highdrys01/PDF-IMG/settings/pages`, set the source to **GitHub Actions**, then rerun the workflow.
+
 ## Privacy Model
 
 DocuKind does not include a backend. Files are read into browser memory only for the selected action. Generated downloads are created with local `Blob` URLs and object URLs are revoked after use.
