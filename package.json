@@ -12,10 +12,12 @@
     "test:smoke": "playwright test"
   },
   "dependencies": {
+    "gifenc": "^1.0.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.624",
+    "pica": "^9.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

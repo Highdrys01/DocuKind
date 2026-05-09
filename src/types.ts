@@ -1,4 +1,5 @@
-export type ToolCategory = "Organize" | "Convert" | "Edit" | "Sign" | "Optimize";
+export type ToolKind = "pdf" | "image";
+export type ToolCategory = "Organize" | "Convert" | "Edit" | "Sign" | "Optimize" | "Create" | "Security";
 
 export type OptionValue = string | number | boolean;
 export type ToolOptions = Record<string, OptionValue>;
@@ -57,6 +58,7 @@ export type ToolProcessor = (files: File[], options: ToolOptions, context?: Tool
 export type ToolDefinition = {
   id: string;
   title: string;
+  kind: ToolKind;
   category: ToolCategory;
   tagline: string;
   icon: string;

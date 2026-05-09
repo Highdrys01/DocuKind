@@ -19,10 +19,19 @@ const pageRangeField = (placeholder = "all or 1,3-5") => ({
   help: "Supports all, first, last, odd, even, and ranges like 2-6."
 });
 
+const imageAccepts = "image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif";
+
+const outputFormatChoices = [
+  { label: "PNG", value: "png" },
+  { label: "JPG", value: "jpeg" },
+  { label: "WebP", value: "webp" }
+];
+
 export const tools: ToolDefinition[] = [
   {
     id: "merge-pdf",
     title: "Merge PDF",
+    kind: "pdf",
     category: "Organize",
     tagline: "Combine PDFs in the order shown.",
     icon: "Layers",
@@ -35,6 +44,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "split-pdf",
     title: "Split PDF",
+    kind: "pdf",
     category: "Organize",
     tagline: "Create one file per page or by ranges.",
     icon: "Scissors",
@@ -67,6 +77,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "organize-pdf",
     title: "Organize Pages",
+    kind: "pdf",
     category: "Organize",
     tagline: "Reorder pages with a custom sequence.",
     icon: "LayoutGrid",
@@ -94,6 +105,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "rotate-pdf",
     title: "Rotate PDF",
+    kind: "pdf",
     category: "Organize",
     tagline: "Turn selected pages permanently.",
     icon: "RotateCw",
@@ -119,6 +131,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "delete-pages",
     title: "Delete Pages",
+    kind: "pdf",
     category: "Organize",
     tagline: "Remove unwanted pages.",
     icon: "Trash2",
@@ -131,6 +144,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "extract-pages",
     title: "Extract Pages",
+    kind: "pdf",
     category: "Organize",
     tagline: "Pull selected pages into a new PDF.",
     icon: "Copy",
@@ -143,6 +157,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "images-to-pdf",
     title: "Images to PDF",
+    kind: "pdf",
     category: "Convert",
     tagline: "Turn JPG, PNG, or WebP images into pages.",
     icon: "Images",
@@ -195,6 +210,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "pdf-to-images",
     title: "PDF to Images",
+    kind: "pdf",
     category: "Convert",
     tagline: "Export pages as PNG or JPG.",
     icon: "Image",
@@ -238,6 +254,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "watermark",
     title: "Watermark",
+    kind: "pdf",
     category: "Edit",
     tagline: "Stamp text across selected pages.",
     icon: "Droplets",
@@ -259,6 +276,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "page-numbers",
     title: "Page Numbers",
+    kind: "pdf",
     category: "Edit",
     tagline: "Add simple page labels.",
     icon: "ListOrdered",
@@ -280,6 +298,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "sign-pdf",
     title: "Sign PDF",
+    kind: "pdf",
     category: "Sign",
     tagline: "Apply a typed signature locally.",
     icon: "PenLine",
@@ -299,6 +318,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "metadata",
     title: "Metadata",
+    kind: "pdf",
     category: "Edit",
     tagline: "Clear or update document properties.",
     icon: "Tags",
@@ -326,6 +346,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "compress",
     title: "Basic Compress",
+    kind: "pdf",
     category: "Optimize",
     tagline: "Rebuild PDFs or rasterize scans.",
     icon: "Archive",
@@ -349,6 +370,252 @@ export const tools: ToolDefinition[] = [
       { name: "jpegQuality", label: "JPG quality", type: "range", defaultValue: 0.68, min: 0.2, max: 0.95, step: 0.01, showWhen: (options) => options.mode === "raster" }
     ],
     processor: () => import("./processors").then((module) => module.compressPdf)
+  },
+  {
+    id: "compress-image",
+    title: "Compress Image",
+    kind: "image",
+    category: "Optimize",
+    tagline: "Shrink images with quality controls.",
+    icon: "Archive",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      {
+        name: "format",
+        label: "Output",
+        type: "select",
+        defaultValue: "auto",
+        choices: [{ label: "Keep format", value: "auto" }, ...outputFormatChoices]
+      },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.82, min: 0.2, max: 0.98, step: 0.01 },
+      { name: "maxWidth", label: "Max width", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original width." },
+      { name: "maxHeight", label: "Max height", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original height." }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.compressImage)
+  },
+  {
+    id: "resize-image",
+    title: "Resize Image",
+    kind: "image",
+    category: "Edit",
+    tagline: "Resize by pixels or percentage.",
+    icon: "Image",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      {
+        name: "resizeMode",
+        label: "Mode",
+        type: "select",
+        defaultValue: "pixels",
+        choices: [
+          { label: "Pixels", value: "pixels" },
+          { label: "Percent", value: "percent" }
+        ]
+      },
+      { name: "width", label: "Width", type: "number", defaultValue: 1280, min: 1, max: 12000, step: 1, showWhen: (options) => options.resizeMode !== "percent" },
+      { name: "height", label: "Height", type: "number", defaultValue: 720, min: 1, max: 12000, step: 1, showWhen: (options) => options.resizeMode !== "percent" },
+      { name: "percent", label: "Percent", type: "range", defaultValue: 50, min: 1, max: 300, step: 1, showWhen: (options) => options.resizeMode === "percent" },
+      {
+        name: "fit",
+        label: "Fit",
+        type: "select",
+        defaultValue: "inside",
+        choices: [
+          { label: "Fit inside", value: "inside" },
+          { label: "Contain", value: "contain" },
+          { label: "Cover", value: "cover" },
+          { label: "Stretch", value: "stretch" }
+        ],
+        showWhen: (options) => options.resizeMode !== "percent"
+      },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.resizeImage)
+  },
+  {
+    id: "crop-image",
+    title: "Crop Image",
+    kind: "image",
+    category: "Edit",
+    tagline: "Crop with numeric or selected regions.",
+    icon: "Scissors",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "cropRegion", label: "Selected crop", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Drag on the preview or enter x,y,width,height." },
+      { name: "x", label: "X", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
+      { name: "y", label: "Y", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
+      { name: "cropWidth", label: "Width", type: "number", defaultValue: 400, min: 1, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
+      { name: "cropHeight", label: "Height", type: "number", defaultValue: 400, min: 1, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.cropImage)
+  },
+  {
+    id: "rotate-flip-image",
+    title: "Rotate / Flip Image",
+    kind: "image",
+    category: "Edit",
+    tagline: "Rotate and mirror images in batches.",
+    icon: "RotateCw",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      {
+        name: "rotate",
+        label: "Rotate",
+        type: "select",
+        defaultValue: "90",
+        choices: [
+          { label: "0 degrees", value: "0" },
+          { label: "90 degrees", value: "90" },
+          { label: "180 degrees", value: "180" },
+          { label: "270 degrees", value: "270" }
+        ]
+      },
+      { name: "flipX", label: "Flip horizontal", type: "checkbox", defaultValue: false },
+      { name: "flipY", label: "Flip vertical", type: "checkbox", defaultValue: false },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.rotateFlipImage)
+  },
+  {
+    id: "convert-to-jpg",
+    title: "Convert to JPG",
+    kind: "image",
+    category: "Convert",
+    tagline: "Convert PNG, WebP, or GIF previews to JPG.",
+    icon: "Image",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "quality", label: "JPG quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 },
+      { name: "backgroundColor", label: "Background", type: "color", defaultValue: "#ffffff", help: "Used behind transparent images." }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.convertToJpg)
+  },
+  {
+    id: "convert-from-jpg",
+    title: "Convert from JPG",
+    kind: "image",
+    category: "Convert",
+    tagline: "Convert JPG to PNG, WebP, or GIF.",
+    icon: "Images",
+    accepts: "image/jpeg,.jpg,.jpeg",
+    multiple: true,
+    minFiles: 1,
+    options: [
+      {
+        name: "outputFormat",
+        label: "Output",
+        type: "select",
+        defaultValue: "png",
+        choices: [...outputFormatChoices, { label: "GIF", value: "gif" }]
+      },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: (options) => options.outputFormat !== "gif" },
+      { name: "gifDelay", label: "GIF delay", type: "number", defaultValue: 500, min: 20, max: 5000, step: 10, showWhen: (options) => options.outputFormat === "gif" }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.convertFromJpg)
+  },
+  {
+    id: "watermark-image",
+    title: "Watermark Image",
+    kind: "image",
+    category: "Security",
+    tagline: "Stamp text watermarks on images.",
+    icon: "Droplets",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "text", label: "Text", type: "text", defaultValue: "DRAFT", placeholder: "DRAFT" },
+      { name: "position", label: "Position", type: "select", defaultValue: "center", choices: positionChoices },
+      { name: "size", label: "Size", type: "number", defaultValue: 48, min: 8, max: 300, step: 2 },
+      { name: "opacity", label: "Opacity", type: "range", defaultValue: 0.65, min: 0.03, max: 1, step: 0.01 },
+      { name: "angle", label: "Angle", type: "number", defaultValue: -22, min: -180, max: 180, step: 1 },
+      { name: "color", label: "Color", type: "color", defaultValue: "#ffffff" },
+      { name: "repeat", label: "Repeat across image", type: "checkbox", defaultValue: false },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.watermarkImage)
+  },
+  {
+    id: "meme-generator",
+    title: "Meme Generator",
+    kind: "image",
+    category: "Create",
+    tagline: "Add bold top and bottom captions.",
+    icon: "FileText",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "topText", label: "Top text", type: "text", defaultValue: "TOP TEXT" },
+      { name: "bottomText", label: "Bottom text", type: "text", defaultValue: "BOTTOM TEXT" },
+      { name: "fontScale", label: "Text size", type: "range", defaultValue: 0.1, min: 0.04, max: 0.2, step: 0.01 },
+      { name: "textColor", label: "Text", type: "color", defaultValue: "#ffffff" },
+      { name: "strokeColor", label: "Outline", type: "color", defaultValue: "#000000" },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.memeGenerator)
+  },
+  {
+    id: "photo-editor",
+    title: "Photo Editor",
+    kind: "image",
+    category: "Edit",
+    tagline: "Adjust, crop, rotate, and filter images.",
+    icon: "Image",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "cropRegion", label: "Crop region", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Optional. Drag on the preview or enter x,y,width,height." },
+      { name: "rotate", label: "Rotate", type: "select", defaultValue: "0", choices: [{ label: "0 degrees", value: "0" }, { label: "90 degrees", value: "90" }, { label: "180 degrees", value: "180" }, { label: "270 degrees", value: "270" }] },
+      { name: "flipX", label: "Flip horizontal", type: "checkbox", defaultValue: false },
+      { name: "flipY", label: "Flip vertical", type: "checkbox", defaultValue: false },
+      { name: "brightness", label: "Brightness", type: "range", defaultValue: 100, min: 0, max: 200, step: 1 },
+      { name: "contrast", label: "Contrast", type: "range", defaultValue: 100, min: 0, max: 200, step: 1 },
+      { name: "saturation", label: "Saturation", type: "range", defaultValue: 100, min: 0, max: 250, step: 1 },
+      { name: "blur", label: "Blur", type: "range", defaultValue: 0, min: 0, max: 20, step: 1 },
+      { name: "grayscale", label: "Grayscale", type: "checkbox", defaultValue: false },
+      { name: "sepia", label: "Sepia", type: "checkbox", defaultValue: false },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.photoEditor)
+  },
+  {
+    id: "blur-redact-image",
+    title: "Blur / Redact Image",
+    kind: "image",
+    category: "Security",
+    tagline: "Manually hide private regions.",
+    icon: "LayoutGrid",
+    accepts: imageAccepts,
+    multiple: true,
+    minFiles: 1,
+    options: [
+      { name: "regions", label: "Regions", type: "textarea", defaultValue: "", placeholder: "10%,10%,35%,20%", help: "Drag on the preview or enter x,y,width,height. Separate multiple regions with semicolons." },
+      { name: "mode", label: "Mode", type: "select", defaultValue: "blur", choices: [{ label: "Blur", value: "blur" }, { label: "Redact", value: "redact" }] },
+      { name: "blurAmount", label: "Blur amount", type: "range", defaultValue: 14, min: 1, max: 40, step: 1, showWhen: (options) => options.mode !== "redact" },
+      { name: "redactColor", label: "Redact color", type: "color", defaultValue: "#111111", showWhen: (options) => options.mode === "redact" },
+      { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+    ],
+    processor: () => import("./imageProcessors").then((module) => module.blurRedactImage)
   }
 ];
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ToolDefinition, ToolOptions, ToolResult } from "./types";
-import { categories, defaultOptionsFor, getTool, tools } from "./tools/registry";
+import { defaultOptionsFor, getTool, tools } from "./tools/registry";
 import { navigate, normalizeRoute, pathForRoute } from "./utils/router";
 import { FileDropzone } from "./components/FileDropzone";
 import { Icon } from "./components/Icon";
+import { ImageRegionSelector } from "./components/ImageRegionSelector";
 import { PdfPreview } from "./components/PdfPreview";
 import { ResultList } from "./components/ResultList";
 import { ToolOptionsForm } from "./components/ToolOptionsForm";
@@ -58,22 +59,29 @@ function Header() {
 
 function Dashboard() {
   const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<string>("All");
   const [category, setCategory] = useState<string>("All");
   const filteredTools = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return tools.filter((tool) => {
       const matchesQuery = !normalized || `${tool.title} ${tool.tagline} ${tool.category}`.toLowerCase().includes(normalized);
+      const matchesKind = kind === "All" || tool.kind === kind.toLowerCase();
       const matchesCategory = category === "All" || tool.category === category;
-      return matchesQuery && matchesCategory;
+      return matchesQuery && matchesKind && matchesCategory;
     });
-  }, [category, query]);
+  }, [category, kind, query]);
+
+  const filteredCategories = useMemo(() => {
+    const source = kind === "All" ? tools : tools.filter((tool) => tool.kind === kind.toLowerCase());
+    return Array.from(new Set(source.map((tool) => tool.category)));
+  }, [kind]);
 
   return (
     <div className="dashboard">
       <section className="workspace-title">
         <div>
           <p className="eyebrow">Free browser toolkit</p>
-          <h1>PDF work, kept on your device.</h1>
+          <h1>PDF and image work, kept on your device.</h1>
         </div>
         <div className="metric-strip" aria-label="Privacy facts">
           <span>0 uploads</span>
@@ -87,8 +95,23 @@ function Dashboard() {
           <Icon name="Search" size={18} />
           <input value={query} placeholder="Search tools" onChange={(event) => setQuery(event.currentTarget.value)} />
         </label>
+        <div className="segmented compact" aria-label="Tool type">
+          {["All", "PDF", "Image"].map((item) => (
+            <button
+              className={item === kind ? "active" : ""}
+              type="button"
+              key={item}
+              onClick={() => {
+                setKind(item);
+                setCategory("All");
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
         <div className="segmented">
-          {["All", ...categories].map((item) => (
+          {["All", ...filteredCategories].map((item) => (
             <button className={item === category ? "active" : ""} type="button" key={item} onClick={() => setCategory(item)}>
               {item}
             </button>
@@ -96,7 +119,7 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="tool-grid" aria-label="PDF tools">
+      <section className="tool-grid" aria-label="Tools">
         {filteredTools.map((tool) => (
           <button className="tool-card" type="button" key={tool.id} onClick={() => navigate(`/tool/${tool.id}`)}>
             <span className="tool-icon">
@@ -106,7 +129,7 @@ function Dashboard() {
               <strong>{tool.title}</strong>
               <span>{tool.tagline}</span>
             </span>
-            <small>{tool.category}</small>
+            <small>{tool.kind.toUpperCase()} · {tool.category}</small>
           </button>
         ))}
       </section>
@@ -199,6 +222,28 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
               <p className="quiet-copy">Page fields accept `all`, `first`, `last`, `odd`, `even`, and ranges like `2-6`.</p>
             )}
           </section>
+
+          {(tool.id === "crop-image" || tool.id === "photo-editor") && (
+            <ImageRegionSelector
+              file={files[0]}
+              label="Select crop"
+              mode="single"
+              optionName="cropRegion"
+              options={options}
+              onChange={setOptions}
+            />
+          )}
+
+          {tool.id === "blur-redact-image" && (
+            <ImageRegionSelector
+              file={files[0]}
+              label="Select private areas"
+              mode="multi"
+              optionName="regions"
+              options={options}
+              onChange={setOptions}
+            />
+          )}
 
           {error && <p className="error-copy">{error}</p>}
           {progress && (

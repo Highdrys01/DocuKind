@@ -177,7 +177,7 @@ a {
   align-items: center;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(220px, 360px) 1fr;
+  grid-template-columns: minmax(220px, 330px) auto 1fr;
   margin-bottom: 20px;
 }
 
@@ -207,6 +207,10 @@ a {
   justify-content: flex-end;
   overflow-x: auto;
   padding-bottom: 2px;
+}
+
+.segmented.compact {
+  justify-content: flex-start;
 }
 
 .segmented button {
@@ -655,6 +659,43 @@ a {
   max-width: 100%;
   object-fit: contain;
   width: 100%;
+}
+
+.region-selector {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.region-canvas {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: crosshair;
+  max-height: 520px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.region-canvas img {
+  display: block;
+  max-height: 520px;
+  object-fit: contain;
+  pointer-events: none;
+  width: 100%;
+}
+
+.region-box {
+  background: rgba(217, 242, 116, 0.22);
+  border: 2px solid var(--lime);
+  box-shadow: 0 0 0 1px rgba(31, 42, 36, 0.4);
+  position: absolute;
+}
+
+.region-box.active {
+  background: rgba(240, 93, 94, 0.18);
+  border-color: var(--coral);
 }
 
 .tool-tagline {
