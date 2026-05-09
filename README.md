@@ -43,9 +43,9 @@ Compression is intentionally honest. The default mode rebuilds PDFs losslessly a
 
 ### Image Tools
 
-- **Compress Image**: shrink JPG, PNG, WebP, or browser-decoded GIF previews with quality and max-dimension controls.
+- **Compress Image**: shrink JPG, PNG, WebP, or browser-decoded GIF previews with quality, target-size, and max-dimension controls.
 - **Resize Image**: resize one or many images by exact pixels or percentage, using high-quality browser resampling.
-- **Crop Image**: crop by typing `x,y,width,height` values or dragging a crop region on the preview.
+- **Crop Image**: crop by typing `x,y,width,height` values or dragging a crop region on the preview, with optional aspect-ratio presets.
 - **Rotate / Flip Image**: rotate and mirror images in batches.
 - **Convert to JPG**: convert supported browser image formats to JPG with a background color for transparency.
 - **Convert from JPG**: convert JPG files to PNG, WebP, or GIF. Multiple JPG files can become one animated GIF.
@@ -119,6 +119,10 @@ First deploy note: if the workflow fails with `Not Found` during **Configure Pag
 DocuKind does not include a backend. Files are read into browser memory only for the selected action. Generated downloads are created with local `Blob` URLs and object URLs are revoked after use.
 
 The uploader filters unsupported file types before processing. For example, PDF tools accept PDFs only, image tools accept browser-supported image formats, and Images to PDF accepts supported image files only.
+
+## Open-Source Curation
+
+DocuKind uses permissively licensed open-source libraries as engines, not as cloned full apps. See `docs/open-source-curation.md` for the candidate scorecard and `THIRD_PARTY_NOTICES.md` for direct dependency notices. GPL/AGPL projects are research-only unless the policy is explicitly changed.
 
 ## Browser Support
 

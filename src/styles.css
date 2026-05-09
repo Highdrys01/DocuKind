@@ -473,8 +473,7 @@ a {
   min-width: 0;
 }
 
-.field span:first-child,
-.field > span:first-child {
+.field > label {
   font-size: 0.88rem;
   font-weight: 800;
 }

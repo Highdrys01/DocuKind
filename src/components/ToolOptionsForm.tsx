@@ -15,21 +15,42 @@ export function ToolOptionsForm({ fields, options, onChange }: ToolOptionsFormPr
 
   return (
     <div className="options-grid">
-      {visibleFields.map((field) => (
-        <label className={`field field-${field.type}`} key={field.name}>
-          <span>{field.label}</span>
-          {renderField(field, options[field.name], (value) => onChange({ ...options, [field.name]: value }))}
-          {field.help && <small>{field.help}</small>}
-        </label>
-      ))}
+      {visibleFields.map((field) => {
+        const fieldId = `option-${field.name}`;
+        const helpId = field.help ? `${fieldId}-help` : undefined;
+        return (
+          <div className={`field field-${field.type}`} key={field.name}>
+            <label htmlFor={fieldId}>{field.label}</label>
+            {renderField(
+              field,
+              options[field.name],
+              (value) => onChange({ ...options, [field.name]: value }),
+              fieldId,
+              helpId
+            )}
+            {field.help && <small id={helpId}>{field.help}</small>}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function renderField(field: OptionField, value: unknown, onChange: (value: string | number | boolean) => void) {
+function renderField(
+  field: OptionField,
+  value: unknown,
+  onChange: (value: string | number | boolean) => void,
+  id: string,
+  describedBy?: string
+) {
   if (field.type === "select") {
     return (
-      <select value={String(value ?? field.defaultValue)} onChange={(event) => onChange(event.currentTarget.value)}>
+      <select
+        id={id}
+        aria-describedby={describedBy}
+        value={String(value ?? field.defaultValue)}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
         {field.choices.map((choice) => (
           <option key={choice.value} value={choice.value}>
             {choice.label}
@@ -42,6 +63,8 @@ function renderField(field: OptionField, value: unknown, onChange: (value: strin
   if (field.type === "textarea") {
     return (
       <textarea
+        id={id}
+        aria-describedby={describedBy}
         value={String(value ?? field.defaultValue)}
         placeholder={field.placeholder}
         rows={3}
@@ -53,6 +76,8 @@ function renderField(field: OptionField, value: unknown, onChange: (value: strin
   if (field.type === "checkbox") {
     return (
       <input
+        id={id}
+        aria-describedby={describedBy}
         checked={Boolean(value ?? field.defaultValue)}
         type="checkbox"
         onChange={(event) => onChange(event.currentTarget.checked)}
@@ -64,6 +89,8 @@ function renderField(field: OptionField, value: unknown, onChange: (value: strin
     return (
       <span className={field.type === "range" ? "range-row" : undefined}>
         <input
+          id={id}
+          aria-describedby={describedBy}
           value={Number(value ?? field.defaultValue)}
           type={field.type}
           min={field.min}
@@ -78,6 +105,8 @@ function renderField(field: OptionField, value: unknown, onChange: (value: strin
 
   return (
     <input
+      id={id}
+      aria-describedby={describedBy}
       value={String(value ?? field.defaultValue)}
       type={field.type}
       placeholder={"placeholder" in field ? field.placeholder : undefined}

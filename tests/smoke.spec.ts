@@ -65,6 +65,20 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
 
   const cropped = await downloadFirst(page);
   expect(readPngSize(await readFile(cropped))).toEqual({ width: 80, height: 50 });
+
+  await page.getByRole("button", { name: "Tools" }).click();
+  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: /Compress Image/ }).click();
+  await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
+  await page.getByLabel("Output").selectOption("jpeg");
+  await page.getByLabel("Target KB").fill("5");
+  await page.getByRole("button", { name: /Run Compress Image/ }).click();
+  await expect(page.getByText("fixture-compressed.jpg")).toBeVisible();
+
+  const compressed = await readFile(await downloadFirst(page));
+  expect(compressed[0]).toBe(0xff);
+  expect(compressed[1]).toBe(0xd8);
+  expect(compressed.byteLength).toBeLessThanOrEqual(5 * 1024);
 });
 
 test("converts, watermarks, memes, and redacts images", async ({ page }) => {

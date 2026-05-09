@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ToolOptions } from "../types";
+import {
+  applyAspectRatio,
+  formatPercentRegion,
+  normalizeDragRegion,
+  parsePercentRegions,
+  ratioFromOption,
+  type PercentRegion
+} from "../utils/regions";
 
 type ImageRegionSelectorProps = {
   file: File | undefined;
   label: string;
   mode: "single" | "multi";
   optionName: string;
+  aspectRatio?: string;
   options: ToolOptions;
   onChange: (options: ToolOptions) => void;
 };
@@ -17,14 +26,7 @@ type DragState = {
   currentY: number;
 };
 
-type PercentRegion = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export function ImageRegionSelector({ file, label, mode, optionName, options, onChange }: ImageRegionSelectorProps) {
+export function ImageRegionSelector({ file, label, mode, optionName, aspectRatio, options, onChange }: ImageRegionSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [url, setUrl] = useState("");
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -41,12 +43,13 @@ export function ImageRegionSelector({ file, label, mode, optionName, options, on
   }, [file]);
 
   const regions = useMemo(() => parsePercentRegions(String(options[optionName] ?? "")), [optionName, options]);
-  const dragRegion = drag ? normalizeDrag(drag) : null;
+  const ratio = ratioFromOption(aspectRatio);
+  const dragRegion = drag ? applyAspectRatio(normalizeDragRegion(drag), ratio) : null;
 
   if (!url) return null;
 
   const commitRegion = (state: DragState) => {
-    const normalized = normalizeDrag(state);
+    const normalized = applyAspectRatio(normalizeDragRegion(state), ratio);
     if (normalized.width < 1 || normalized.height < 1) return;
 
     const value = formatPercentRegion(normalized);
@@ -101,31 +104,12 @@ export function ImageRegionSelector({ file, label, mode, optionName, options, on
         ))}
         {dragRegion && <span className="region-box active" style={regionStyle(dragRegion)} />}
       </div>
-      <p className="quiet-copy">Drag on the image to set {mode === "single" ? "the region" : "one or more regions"}.</p>
+      <p className="quiet-copy">
+        Drag on the image to set {mode === "single" ? "the region" : "one or more regions"}.
+        {ratio && " Aspect is locked to the selected preset."}
+      </p>
     </section>
   );
-}
-
-function parsePercentRegions(value: string): PercentRegion[] {
-  return value
-    .split(/[;\n]+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map<PercentRegion | null>((part) => {
-      const values = part.split(",").map((token) => Number(token.trim().replace("%", "")));
-      if (values.length !== 4 || values.some((number) => !Number.isFinite(number))) return null;
-      const [x, y, width, height] = values;
-      return { x, y, width, height };
-    })
-    .filter((region): region is PercentRegion => region !== null);
-}
-
-function normalizeDrag(drag: DragState): PercentRegion {
-  const x = Math.min(drag.startX, drag.currentX);
-  const y = Math.min(drag.startY, drag.currentY);
-  const width = Math.abs(drag.currentX - drag.startX);
-  const height = Math.abs(drag.currentY - drag.startY);
-  return { x, y, width, height };
 }
 
 function regionStyle(region: PercentRegion): CSSProperties {
@@ -135,10 +119,6 @@ function regionStyle(region: PercentRegion): CSSProperties {
     width: `${region.width}%`,
     height: `${region.height}%`
   };
-}
-
-function formatPercentRegion(region: PercentRegion): string {
-  return [region.x, region.y, region.width, region.height].map((value) => `${clamp(value, 0, 100).toFixed(1)}%`).join(",");
 }
 
 function clamp(value: number, min: number, max: number): number {

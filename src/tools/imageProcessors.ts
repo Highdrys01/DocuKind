@@ -8,6 +8,7 @@ import {
   drawMemeText,
   drawTextWatermark,
   encodeGifFromCanvases,
+  exportCanvas,
   imageFileToCanvas,
   outputFormatFromMime,
   parseRegion,
@@ -27,6 +28,7 @@ export const compressImage: ToolProcessor = async (files, options, context) => {
 
   const formatSetting = stringOption(options.format, "auto");
   const quality = numberOption(options.quality, 0.82);
+  const targetSizeKb = numberOption(options.targetSizeKb, 0);
   const maxWidth = numberOption(options.maxWidth, 0);
   const maxHeight = numberOption(options.maxHeight, 0);
   const results: ToolResult[] = [];
@@ -47,15 +49,7 @@ export const compressImage: ToolProcessor = async (files, options, context) => {
     }
 
     const format = formatSetting === "auto" ? outputFormatFromMime(file.type) : normalizeFormat(formatSetting);
-    const result = await resultFromCanvas(
-      file.name,
-      "compressed",
-      canvas,
-      format,
-      quality,
-      compressionSummary(file.size, 0)
-    );
-    result.summary = compressionSummary(file.size, result.blob.size);
+    const result = await compressedResult(file, canvas, format, quality, targetSizeKb);
     results.push(result);
   }
 
@@ -356,6 +350,62 @@ function normalizeFormat(value: string): "png" | "jpeg" | "webp" | "gif" {
 function normalizeFit(value: string) {
   if (value === "contain" || value === "cover" || value === "stretch" || value === "inside") return value;
   return "inside";
+}
+
+async function compressedResult(
+  file: File,
+  canvas: HTMLCanvasElement,
+  format: "png" | "jpeg" | "webp" | "gif",
+  quality: number,
+  targetSizeKb: number
+): Promise<ToolResult> {
+  const targetBytes = Math.max(0, targetSizeKb) * 1024;
+  let blob = await exportCanvas(canvas, format, quality);
+  let summary = compressionSummary(file.size, blob.size);
+
+  if (targetBytes > 0 && (format === "jpeg" || format === "webp")) {
+    const compressed = await exportToTargetSize(canvas, format, quality, targetBytes);
+    blob = compressed.blob;
+    const targetText = blob.size <= targetBytes
+      ? ` Target met at quality ${compressed.quality.toFixed(2)}.`
+      : ` Closest output is above target at quality ${compressed.quality.toFixed(2)}.`;
+    summary = `${compressionSummary(file.size, blob.size)}${targetText}`;
+  } else if (targetBytes > 0) {
+    summary = `${summary} Target size is only applied to JPG or WebP output.`;
+  }
+
+  const extension = format === "jpeg" ? "jpg" : format;
+  return resultFromBlob(makeOutputName(file.name, "compressed", extension), blob, summary);
+}
+
+async function exportToTargetSize(
+  canvas: HTMLCanvasElement,
+  format: "jpeg" | "webp",
+  startQuality: number,
+  targetBytes: number
+): Promise<{ blob: Blob; quality: number }> {
+  let low = 0.2;
+  let high = Math.min(Math.max(startQuality, low), 0.98);
+  let best = {
+    blob: await exportCanvas(canvas, format, high),
+    quality: high
+  };
+  if (best.blob.size <= targetBytes) return best;
+
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    const quality = (low + high) / 2;
+    const blob = await exportCanvas(canvas, format, quality);
+
+    if (blob.size <= targetBytes) {
+      best = { blob, quality };
+      low = quality;
+    } else {
+      high = quality;
+      if (blob.size < best.blob.size) best = { blob, quality };
+    }
+  }
+
+  return best;
 }
 
 function assertCanvasSize(width: number, height: number): void {

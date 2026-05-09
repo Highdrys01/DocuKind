@@ -27,6 +27,14 @@ const outputFormatChoices = [
   { label: "WebP", value: "webp" }
 ];
 
+const aspectRatioChoices = [
+  { label: "Free", value: "free" },
+  { label: "Square", value: "1:1" },
+  { label: "4:3", value: "4:3" },
+  { label: "3:2", value: "3:2" },
+  { label: "16:9", value: "16:9" }
+];
+
 export const tools: ToolDefinition[] = [
   {
     id: "merge-pdf",
@@ -390,6 +398,7 @@ export const tools: ToolDefinition[] = [
         choices: [{ label: "Keep format", value: "auto" }, ...outputFormatChoices]
       },
       { name: "quality", label: "Quality", type: "range", defaultValue: 0.82, min: 0.2, max: 0.98, step: 0.01 },
+      { name: "targetSizeKb", label: "Target KB", type: "number", defaultValue: 0, min: 0, max: 20000, step: 10, help: "Optional. Works with JPG/WebP output; 0 disables." },
       { name: "maxWidth", label: "Max width", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original width." },
       { name: "maxHeight", label: "Max height", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original height." }
     ],
@@ -449,6 +458,7 @@ export const tools: ToolDefinition[] = [
     minFiles: 1,
     options: [
       { name: "cropRegion", label: "Selected crop", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Drag on the preview or enter x,y,width,height." },
+      { name: "aspectRatio", label: "Aspect", type: "select", defaultValue: "free", choices: aspectRatioChoices, help: "Used when dragging on the preview." },
       { name: "x", label: "X", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
       { name: "y", label: "Y", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
       { name: "cropWidth", label: "Width", type: "number", defaultValue: 400, min: 1, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
@@ -583,6 +593,7 @@ export const tools: ToolDefinition[] = [
     minFiles: 1,
     options: [
       { name: "cropRegion", label: "Crop region", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Optional. Drag on the preview or enter x,y,width,height." },
+      { name: "aspectRatio", label: "Aspect", type: "select", defaultValue: "free", choices: aspectRatioChoices, help: "Used when dragging on the preview." },
       { name: "rotate", label: "Rotate", type: "select", defaultValue: "0", choices: [{ label: "0 degrees", value: "0" }, { label: "90 degrees", value: "90" }, { label: "180 degrees", value: "180" }, { label: "270 degrees", value: "270" }] },
       { name: "flipX", label: "Flip horizontal", type: "checkbox", defaultValue: false },
       { name: "flipY", label: "Flip vertical", type: "checkbox", defaultValue: false },

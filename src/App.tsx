@@ -229,6 +229,7 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
               label="Select crop"
               mode="single"
               optionName="cropRegion"
+              aspectRatio={String(options.aspectRatio ?? "free")}
               options={options}
               onChange={setOptions}
             />
