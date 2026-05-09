@@ -45,9 +45,9 @@ function Header() {
       <nav aria-label="Project links">
         <span className="status-chip">
           <Icon name="ShieldCheck" size={16} />
-          Local
+          No uploads
         </span>
-        <a className="ghost-link" href="https://github.com/" target="_blank" rel="noreferrer">
+        <a className="ghost-link" href="https://github.com/Highdrys01/PDF-IMG" target="_blank" rel="noreferrer">
           <Icon name="Github" size={16} />
           GitHub
         </a>
@@ -110,6 +110,9 @@ function Dashboard() {
           </button>
         ))}
       </section>
+      {filteredTools.length === 0 && (
+        <p className="empty-state">No tools match that search.</p>
+      )}
     </div>
   );
 }
@@ -147,9 +150,9 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
     try {
       const processor = await tool.processor();
       setProgress("Processing");
-      const output = await processor(files, options);
+      const output = await processor(files, options, { onProgress: setProgress });
       setResults(output);
-      setProgress("Done");
+      setProgress(`Done: ${output.length} file${output.length === 1 ? "" : "s"} ready`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
       setProgress("");
@@ -172,6 +175,7 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
         <div>
           <p className="eyebrow">{tool.category}</p>
           <h1>{tool.title}</h1>
+          <p className="tool-tagline">{tool.tagline}</p>
         </div>
       </section>
 
@@ -190,6 +194,9 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             <ToolOptionsForm fields={tool.options} options={options} onChange={setOptions} />
             {tool.id === "compress" && options.mode === "raster" && (
               <p className="warning-copy">Raster scan rebuilds pages as images. Text selection and form fields will not survive.</p>
+            )}
+            {tool.options.some((option) => option.name === "pages") && (
+              <p className="quiet-copy">Page fields accept `all`, `first`, `last`, `odd`, `even`, and ranges like `2-6`.</p>
             )}
           </section>
 

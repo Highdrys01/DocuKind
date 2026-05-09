@@ -357,11 +357,20 @@ a {
 
 .dropzone-main p,
 .quiet-copy,
+.inline-alert,
 .warning-copy,
 .error-copy,
 .progress-copy {
   color: var(--muted);
   margin: 3px 0 0;
+}
+
+.dropzone-main small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 
 .dropzone-icon {
@@ -547,6 +556,14 @@ a {
   padding: 10px 12px;
 }
 
+.inline-alert {
+  background: rgba(46, 90, 172, 0.08);
+  border: 1px solid rgba(46, 90, 172, 0.2);
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 9px 11px;
+}
+
 .error-copy {
   background: #fff4f3;
   border: 1px solid #ffc7c1;
@@ -638,6 +655,22 @@ a {
   max-width: 100%;
   object-fit: contain;
   width: 100%;
+}
+
+.tool-tagline {
+  color: var(--muted);
+  margin: 5px 0 0;
+}
+
+.empty-state {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0;
+  padding: 18px;
+  text-align: center;
 }
 
 .spin {

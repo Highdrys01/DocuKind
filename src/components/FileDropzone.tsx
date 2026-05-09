@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { ToolDefinition } from "../types";
-import { formatBytes } from "../utils/file";
+import { acceptsFile, dedupeFiles, formatBytes } from "../utils/file";
 import { Icon } from "./Icon";
 
 type FileDropzoneProps = {
@@ -12,10 +12,16 @@ type FileDropzoneProps = {
 export function FileDropzone({ tool, files, onFilesChange }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
 
   const addFiles = (incoming: FileList | File[]) => {
     const next = Array.from(incoming);
-    onFilesChange(tool.multiple ? [...files, ...next] : next.slice(0, 1));
+    const accepted = next.filter((file) => acceptsFile(file, tool.accepts));
+    const rejected = next.filter((file) => !acceptsFile(file, tool.accepts)).map((file) => file.name);
+    setRejectedFiles(rejected);
+
+    if (accepted.length === 0) return;
+    onFilesChange(tool.multiple ? dedupeFiles([...files, ...accepted]) : accepted.slice(0, 1));
   };
 
   const moveFile = (index: number, direction: -1 | 1) => {
@@ -61,6 +67,7 @@ export function FileDropzone({ tool, files, onFilesChange }: FileDropzoneProps) 
         <div>
           <h2>Add files</h2>
           <p>{tool.multiple ? "Drop files here or choose them from your device." : "Drop a file here or choose one from your device."}</p>
+          <small>{tool.accepts.replaceAll(",", ", ")}</small>
         </div>
         <button className="button primary" type="button" onClick={() => inputRef.current?.click()}>
           Choose
@@ -95,6 +102,11 @@ export function FileDropzone({ tool, files, onFilesChange }: FileDropzoneProps) 
             </li>
           ))}
         </ul>
+      )}
+      {rejectedFiles.length > 0 && (
+        <p className="inline-alert" role="alert">
+          Skipped unsupported file{rejectedFiles.length > 1 ? "s" : ""}: {rejectedFiles.join(", ")}
+        </p>
       )}
     </section>
   );

@@ -29,10 +29,10 @@ Your files stay on your device. DocuKind is a static browser app, so it does not
 - **Rotate PDF**: rotate all pages or selected pages.
 - **Delete pages**: remove unwanted pages.
 - **Extract pages**: save selected pages as a new PDF.
-- **Images to PDF**: turn JPG, PNG, or WebP images into PDF pages.
+- **Images to PDF**: turn JPG, PNG, or WebP images into PDF pages with fit, margin, page size, and background controls.
 - **PDF to images**: export selected pages as PNG or JPG files.
-- **Watermark**: add text watermarks with position, color, size, angle, and opacity controls.
-- **Page numbers**: add simple page labels with custom prefix/suffix.
+- **Watermark**: add single or repeating text watermarks with position, color, size, angle, and opacity controls.
+- **Page numbers**: add simple page labels with custom prefix/suffix and optional total page count.
 - **Sign PDF**: place a typed signature on selected pages.
 - **Metadata**: clear or set title, author, subject, and keywords.
 - **Basic compress**: rebuild PDFs losslessly or rasterize scanned PDFs.
@@ -44,10 +44,13 @@ Compression is intentionally honest. The default mode rebuilds PDFs losslessly a
 Tools that ask for pages support:
 
 - `all` for the whole document
+- `first` and `last` for document edges
+- `odd` and `even` for alternating pages
 - `1,3,5` for individual pages
 - `2-6` for a page range
 - `1,3-5,8` for mixed selections
-- `1-2; 3-5` in Split PDF range mode to create separate output files
+- `3-last` for a range that ends at the final page
+- `1-2; last` in Split PDF range mode to create separate output files
 
 Page numbers are user-facing and start at `1`.
 
@@ -95,6 +98,8 @@ First deploy note: if the workflow fails with `Not Found` during **Configure Pag
 ## Privacy Model
 
 DocuKind does not include a backend. Files are read into browser memory only for the selected action. Generated downloads are created with local `Blob` URLs and object URLs are revoked after use.
+
+The uploader filters unsupported file types before processing. For example, PDF tools accept PDFs only, while Images to PDF accepts supported image files only.
 
 ## Browser Support
 

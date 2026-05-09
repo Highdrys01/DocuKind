@@ -1,10 +1,5 @@
 import type { ToolDefinition, ToolOptions } from "../types";
 
-const pageChoices = [
-  { label: "All pages", value: "all" },
-  { label: "Custom pages", value: "custom" }
-];
-
 const positionChoices = [
   { label: "Center", value: "center" },
   { label: "Top left", value: "top-left" },
@@ -20,7 +15,8 @@ const pageRangeField = (placeholder = "all or 1,3-5") => ({
   label: "Pages",
   type: "text" as const,
   defaultValue: "all",
-  placeholder
+  placeholder,
+  help: "Supports all, first, last, odd, even, and ranges like 2-6."
 });
 
 export const tools: ToolDefinition[] = [
@@ -61,8 +57,8 @@ export const tools: ToolDefinition[] = [
         label: "Ranges",
         type: "textarea",
         defaultValue: "1-2; 3-5",
-        placeholder: "1-2; 3-5",
-        help: "Use semicolons to make separate files.",
+        placeholder: "1-2; last",
+        help: "Use semicolons to make separate files. Supports last, odd, and even.",
         showWhen: (options: ToolOptions) => options.splitMode === "ranges"
       }
     ],
@@ -83,7 +79,8 @@ export const tools: ToolDefinition[] = [
         label: "Page order",
         type: "text",
         defaultValue: "all",
-        placeholder: "3,1,2 or all"
+        placeholder: "3,1,2,last or all",
+        help: "Repeats are ignored; use custom order, all, first, or last."
       },
       {
         name: "reverseOrder",
@@ -184,6 +181,13 @@ export const tools: ToolDefinition[] = [
         min: 0,
         max: 144,
         step: 6
+      },
+      {
+        name: "backgroundColor",
+        label: "Background",
+        type: "color",
+        defaultValue: "#ffffff",
+        help: "Used behind transparent PNG/WebP images."
       }
     ],
     processor: () => import("./processors").then((module) => module.imagesToPdf)
@@ -247,7 +251,8 @@ export const tools: ToolDefinition[] = [
       { name: "size", label: "Size", type: "number", defaultValue: 42, min: 8, max: 160, step: 2 },
       { name: "opacity", label: "Opacity", type: "range", defaultValue: 0.18, min: 0.03, max: 1, step: 0.01 },
       { name: "angle", label: "Angle", type: "number", defaultValue: -32, min: -180, max: 180, step: 1 },
-      { name: "color", label: "Color", type: "color", defaultValue: "#f05d5e" }
+      { name: "color", label: "Color", type: "color", defaultValue: "#f05d5e" },
+      { name: "tile", label: "Repeat across page", type: "checkbox", defaultValue: false }
     ],
     processor: () => import("./processors").then((module) => module.watermarkPdf)
   },
@@ -266,6 +271,7 @@ export const tools: ToolDefinition[] = [
       { name: "position", label: "Position", type: "select", defaultValue: "bottom-center", choices: positionChoices },
       { name: "prefix", label: "Prefix", type: "text", defaultValue: "", placeholder: "Page " },
       { name: "suffix", label: "Suffix", type: "text", defaultValue: "", placeholder: " / 10" },
+      { name: "includeTotal", label: "Include total pages", type: "checkbox", defaultValue: false },
       { name: "size", label: "Size", type: "number", defaultValue: 11, min: 6, max: 48, step: 1 },
       { name: "color", label: "Color", type: "color", defaultValue: "#1f2a24" }
     ],
@@ -335,7 +341,8 @@ export const tools: ToolDefinition[] = [
         choices: [
           { label: "Lossless rebuild", value: "lossless" },
           { label: "Raster scan", value: "raster" }
-        ]
+        ],
+        help: "Use raster only for scanned PDFs when smaller files matter more than selectable text."
       },
       { name: "removeMetadata", label: "Remove metadata", type: "checkbox", defaultValue: true, showWhen: (options) => options.mode === "lossless" },
       { name: "rasterScale", label: "Raster scale", type: "range", defaultValue: 1.1, min: 0.6, max: 2.2, step: 0.1, showWhen: (options) => options.mode === "raster" },

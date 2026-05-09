@@ -33,7 +33,7 @@ describe("PDF processors", () => {
 
   it("splits PDFs by range groups", async () => {
     const file = await makePdf("range", 4);
-    const results = await splitPdf([file], { splitMode: "ranges", ranges: "1-2;4" });
+    const results = await splitPdf([file], { splitMode: "ranges", ranges: "1-2;last" });
     expect(results).toHaveLength(2);
     await expectPageCount(results[0], 2);
     await expectPageCount(results[1], 1);
@@ -67,10 +67,20 @@ describe("PDF processors", () => {
 
   it("adds watermark, numbers, signature, and metadata without changing page count", async () => {
     const file = await makePdf("decorate", 2);
-    await expectPageCount((await watermarkPdf([file], { text: "DRAFT", pages: "all", size: 20 }))[0], 2);
-    await expectPageCount((await pageNumbersPdf([file], { pages: "all", startAt: 1 }))[0], 2);
-    await expectPageCount((await signPdf([file], { signatureText: "Ada", pages: "2" }))[0], 2);
+    await expectPageCount((await watermarkPdf([file], { text: "DRAFT", pages: "all", size: 20, tile: true }))[0], 2);
+    await expectPageCount((await pageNumbersPdf([file], { pages: "all", startAt: 1, includeTotal: true }))[0], 2);
+    await expectPageCount((await signPdf([file], { signatureText: "Ada", pages: "last" }))[0], 2);
     await expectPageCount((await metadataPdf([file], { mode: "clear" }))[0], 2);
+  });
+
+  it("reports progress for long-running tools", async () => {
+    const file = await makePdf("progress", 2);
+    const progress: string[] = [];
+    const [result] = await mergePdf([file, file], {}, { onProgress: (message) => progress.push(message) });
+
+    await expectPageCount(result, 4);
+    expect(progress.some((message) => message.startsWith("Reading"))).toBe(true);
+    expect(result.summary).toContain("Merged 2 PDFs");
   });
 
   it("losslessly rebuilds for basic compression", async () => {

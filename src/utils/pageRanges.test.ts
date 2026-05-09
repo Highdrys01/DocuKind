@@ -11,8 +11,15 @@ describe("page range parsing", () => {
     expect(parsePageSelection("1, 3-5, 2", 6)).toEqual([0, 2, 3, 4, 1]);
   });
 
+  it("supports first, last, odd, and even shortcuts", () => {
+    expect(parsePageSelection("first,last", 5)).toEqual([0, 4]);
+    expect(parsePageSelection("odd", 5)).toEqual([0, 2, 4]);
+    expect(parsePageSelection("even", 5)).toEqual([1, 3]);
+    expect(parsePageSelection("3-last", 5)).toEqual([2, 3, 4]);
+  });
+
   it("supports descending ranges", () => {
-    expect(parsePageSelection("4-2", 4)).toEqual([3, 2, 1]);
+    expect(parsePageSelection("last-2", 4)).toEqual([3, 2, 1]);
   });
 
   it("rejects pages outside the document", () => {
@@ -20,10 +27,10 @@ describe("page range parsing", () => {
   });
 
   it("splits semicolon-delimited groups", () => {
-    expect(parseRangeGroups("1-2; 4", 4)).toEqual([[0, 1], [3]]);
+    expect(parseRangeGroups("1-2; last", 4)).toEqual([[0, 1], [3]]);
   });
 
   it("formats labels as user-facing page numbers", () => {
-    expect(formatPageLabel([0, 2, 3])).toBe("1-3-4");
+    expect(formatPageLabel([0, 2, 3])).toBe("1_3-4");
   });
 });

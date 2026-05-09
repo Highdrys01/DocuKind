@@ -48,7 +48,11 @@ export type ToolResult = {
   summary?: string;
 };
 
-export type ToolProcessor = (files: File[], options: ToolOptions) => Promise<ToolResult[]>;
+export type ToolRunContext = {
+  onProgress?: (message: string) => void;
+};
+
+export type ToolProcessor = (files: File[], options: ToolOptions, context?: ToolRunContext) => Promise<ToolResult[]>;
 
 export type ToolDefinition = {
   id: string;

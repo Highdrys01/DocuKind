@@ -1,12 +1,13 @@
 import {
   degrees,
   PDFDocument,
+  rgb,
   StandardFonts,
   type PDFImage,
   type PDFFont,
   type PDFPage
 } from "pdf-lib";
-import type { ToolOptions, ToolProcessor, ToolResult } from "../types";
+import type { ToolOptions, ToolProcessor, ToolResult, ToolRunContext } from "../types";
 import { fileToUint8Array, formatBytes, makeOutputName, resultFromBlob, resultFromBytes } from "../utils/file";
 import { allPageIndexes, formatPageLabel, parsePageSelection, parseRangeGroups } from "../utils/pageRanges";
 import { booleanOption, copySelectedPages, hexToRgb, loadPdf, numberOption, pageIndexesFor, stringOption } from "../utils/pdf";
@@ -17,22 +18,33 @@ const PAGE_SIZES: Record<string, [number, number]> = {
   square: [720, 720]
 };
 
-export const mergePdf: ToolProcessor = async (files) => {
+export const mergePdf: ToolProcessor = async (files, _options, context) => {
   if (files.length < 2) throw new Error("Add at least two PDFs to merge.");
 
   const output = await PDFDocument.create();
+  let totalPages = 0;
   for (const file of files) {
+    setProgress(context, `Reading ${file.name}`);
     const source = await loadPdf(file);
+    totalPages += source.getPageCount();
     const pages = await output.copyPages(source, pageIndexesFor(source));
     for (const page of pages) output.addPage(page);
   }
 
-  return [resultFromBytes("docukind-merged.pdf", await output.save({ useObjectStreams: true }))];
+  setProgress(context, "Saving merged PDF");
+  return [
+    resultFromBytes(
+      "docukind-merged.pdf",
+      await output.save({ useObjectStreams: true }),
+      `Merged ${files.length} PDFs into ${totalPages} pages.`
+    )
+  ];
 };
 
-export const splitPdf: ToolProcessor = async ([file], options) => {
+export const splitPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const totalPages = source.getPageCount();
   const mode = stringOption(options.splitMode, "every");
@@ -42,18 +54,26 @@ export const splitPdf: ToolProcessor = async ([file], options) => {
 
   const results: ToolResult[] = [];
   for (const [groupIndex, group] of groups.entries()) {
+    setProgress(context, `Creating split ${groupIndex + 1} of ${groups.length}`);
     const output = await copySelectedPages(source, group);
     const label = mode === "ranges" ? `pages-${formatPageLabel(group)}` : `page-${group[0] + 1}`;
     const fallback = `part-${groupIndex + 1}`;
-    results.push(resultFromBytes(makeOutputName(file.name, label || fallback), await output.save({ useObjectStreams: true })));
+    results.push(
+      resultFromBytes(
+        makeOutputName(file.name, label || fallback),
+        await output.save({ useObjectStreams: true }),
+        `${group.length} page${group.length === 1 ? "" : "s"} from ${file.name}.`
+      )
+    );
   }
 
   return results;
 };
 
-export const organizePdf: ToolProcessor = async ([file], options) => {
+export const organizePdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const totalPages = source.getPageCount();
   const reverse = booleanOption(options.reverseOrder);
@@ -63,12 +83,19 @@ export const organizePdf: ToolProcessor = async ([file], options) => {
     : parsePageSelection(rawOrder || "all", totalPages);
   const output = await copySelectedPages(source, order);
 
-  return [resultFromBytes(makeOutputName(file.name, "organized"), await output.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, "organized"),
+      await output.save({ useObjectStreams: true }),
+      `Created a ${order.length}-page PDF in the selected order.`
+    )
+  ];
 };
 
-export const rotatePdf: ToolProcessor = async ([file], options) => {
+export const rotatePdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   const angle = normalizeAngle(numberOption(options.angle, 90));
   const pages = parsePageSelection(stringOption(options.pages), doc.getPageCount());
@@ -78,40 +105,62 @@ export const rotatePdf: ToolProcessor = async ([file], options) => {
     page.setRotation(degrees(normalizeAngle(page.getRotation().angle + angle)));
   }
 
-  return [resultFromBytes(makeOutputName(file.name, `rotated-${angle}`), await doc.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, `rotated-${angle}`),
+      await doc.save({ useObjectStreams: true }),
+      `Rotated ${pages.length} page${pages.length === 1 ? "" : "s"} by ${angle} degrees.`
+    )
+  ];
 };
 
-export const deletePagesPdf: ToolProcessor = async ([file], options) => {
+export const deletePagesPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const deleteSet = new Set(parsePageSelection(stringOption(options.pages), source.getPageCount()));
   const keep = pageIndexesFor(source).filter((index) => !deleteSet.has(index));
   if (keep.length === 0) throw new Error("Deleting every page would create an empty PDF.");
 
   const output = await copySelectedPages(source, keep);
-  return [resultFromBytes(makeOutputName(file.name, "pages-removed"), await output.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, "pages-removed"),
+      await output.save({ useObjectStreams: true }),
+      `Removed ${deleteSet.size} page${deleteSet.size === 1 ? "" : "s"} and kept ${keep.length}.`
+    )
+  ];
 };
 
-export const extractPagesPdf: ToolProcessor = async ([file], options) => {
+export const extractPagesPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const selected = parsePageSelection(stringOption(options.pages), source.getPageCount());
   const output = await copySelectedPages(source, selected);
 
-  return [resultFromBytes(makeOutputName(file.name, `pages-${formatPageLabel(selected)}`), await output.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, `pages-${formatPageLabel(selected)}`),
+      await output.save({ useObjectStreams: true }),
+      `Extracted ${selected.length} page${selected.length === 1 ? "" : "s"}.`
+    )
+  ];
 };
 
-export const imagesToPdf: ToolProcessor = async (files, options) => {
+export const imagesToPdf: ToolProcessor = async (files, options, context) => {
   if (files.length === 0) throw new Error("Add one or more images.");
 
   const pdf = await PDFDocument.create();
   const margin = numberOption(options.margin, 24);
   const pageSize = stringOption(options.pageSize, "auto");
   const fit = stringOption(options.fit, "contain");
+  const backgroundColor = hexToRgb(stringOption(options.backgroundColor, "#ffffff"));
 
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
+    setProgress(context, `Adding image ${index + 1} of ${files.length}`);
     const image = await embedImage(pdf, file);
     const imageWidth = image.width;
     const imageHeight = image.height;
@@ -124,6 +173,7 @@ export const imagesToPdf: ToolProcessor = async (files, options) => {
     const boxHeight = Math.max(1, pageHeight - margin * 2);
     const fitted = fitImage(imageWidth, imageHeight, boxWidth, boxHeight, fit);
 
+    page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: backgroundColor });
     page.drawImage(image, {
       x: margin + (boxWidth - fitted.width) / 2,
       y: margin + (boxHeight - fitted.height) / 2,
@@ -132,12 +182,19 @@ export const imagesToPdf: ToolProcessor = async (files, options) => {
     });
   }
 
-  return [resultFromBytes("docukind-images.pdf", await pdf.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      "docukind-images.pdf",
+      await pdf.save({ useObjectStreams: true }),
+      `Created ${files.length} PDF page${files.length === 1 ? "" : "s"} from images.`
+    )
+  ];
 };
 
-export const pdfToImages: ToolProcessor = async ([file], options) => {
+export const pdfToImages: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const selected = parsePageSelection(stringOption(options.pages), source.getPageCount());
   const format = stringOption(options.format, "png") === "jpeg" ? "jpeg" : "png";
@@ -147,20 +204,28 @@ export const pdfToImages: ToolProcessor = async ([file], options) => {
   const results: ToolResult[] = [];
   const { renderPdfPageToBlob } = await import("../utils/renderPdf");
 
-  for (const index of selected) {
+  for (const [offset, index] of selected.entries()) {
+    setProgress(context, `Rendering page ${offset + 1} of ${selected.length}`);
     const blob = await renderPdfPageToBlob(file, index + 1, scale, mimeType, quality);
-    results.push(resultFromBlob(makeOutputName(file.name, `page-${index + 1}`, format === "jpeg" ? "jpg" : "png"), blob));
+    results.push(
+      resultFromBlob(
+        makeOutputName(file.name, `page-${index + 1}`, format === "jpeg" ? "jpg" : "png"),
+        blob,
+        `Page ${index + 1} exported as ${format.toUpperCase()}.`
+      )
+    );
   }
 
   return results;
 };
 
-export const watermarkPdf: ToolProcessor = async ([file], options) => {
+export const watermarkPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
   const text = stringOption(options.text, "").trim();
   if (!text) throw new Error("Enter watermark text.");
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   const font = await doc.embedFont(StandardFonts.HelveticaBold);
   const pages = parsePageSelection(stringOption(options.pages), doc.getPageCount());
@@ -169,21 +234,39 @@ export const watermarkPdf: ToolProcessor = async ([file], options) => {
   const angle = numberOption(options.angle, -32);
   const color = hexToRgb(stringOption(options.color, "#f05d5e"));
   const position = stringOption(options.position, "center");
+  const tile = booleanOption(options.tile);
 
   for (const index of pages) {
-    drawPlacedText(doc.getPage(index), text, font, size, position, {
+    const page = doc.getPage(index);
+    if (tile) {
+      drawTiledText(page, text, font, size, {
+        color,
+        angle,
+        opacity
+      });
+      continue;
+    }
+
+    drawPlacedText(page, text, font, size, position, {
       color,
       angle,
       opacity
     });
   }
 
-  return [resultFromBytes(makeOutputName(file.name, "watermarked"), await doc.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, "watermarked"),
+      await doc.save({ useObjectStreams: true }),
+      `Applied watermark to ${pages.length} page${pages.length === 1 ? "" : "s"}.`
+    )
+  ];
 };
 
-export const pageNumbersPdf: ToolProcessor = async ([file], options) => {
+export const pageNumbersPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const selected = parsePageSelection(stringOption(options.pages), doc.getPageCount());
@@ -193,21 +276,32 @@ export const pageNumbersPdf: ToolProcessor = async ([file], options) => {
   const prefix = stringOption(options.prefix);
   const suffix = stringOption(options.suffix);
   const position = stringOption(options.position, "bottom-center");
+  const includeTotal = booleanOption(options.includeTotal);
 
   for (const [offset, index] of selected.entries()) {
-    const text = `${prefix}${startAt + offset}${suffix}`;
+    const pageNumber = startAt + offset;
+    const text = includeTotal
+      ? `${prefix}${pageNumber} / ${doc.getPageCount()}${suffix}`
+      : `${prefix}${pageNumber}${suffix}`;
     drawPlacedText(doc.getPage(index), text, font, size, position, { color, opacity: 1, angle: 0 });
   }
 
-  return [resultFromBytes(makeOutputName(file.name, "numbered"), await doc.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, "numbered"),
+      await doc.save({ useObjectStreams: true }),
+      `Numbered ${selected.length} page${selected.length === 1 ? "" : "s"} starting at ${startAt}.`
+    )
+  ];
 };
 
-export const signPdf: ToolProcessor = async ([file], options) => {
+export const signPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
   const signature = stringOption(options.signatureText).trim();
   if (!signature) throw new Error("Enter a signature.");
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   const font = await doc.embedFont(StandardFonts.HelveticaOblique);
   const selected = parsePageSelection(stringOption(options.pages), doc.getPageCount());
@@ -221,12 +315,19 @@ export const signPdf: ToolProcessor = async ([file], options) => {
     drawPlacedText(doc.getPage(index), text, font, size, position, { color, opacity: 1, angle: 0 });
   }
 
-  return [resultFromBytes(makeOutputName(file.name, "signed"), await doc.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, "signed"),
+      await doc.save({ useObjectStreams: true }),
+      `Added typed signature to ${selected.length} page${selected.length === 1 ? "" : "s"}.`
+    )
+  ];
 };
 
-export const metadataPdf: ToolProcessor = async ([file], options) => {
+export const metadataPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   const mode = stringOption(options.mode, "clear");
 
@@ -249,17 +350,24 @@ export const metadataPdf: ToolProcessor = async ([file], options) => {
     doc.setModificationDate(new Date());
   }
 
-  return [resultFromBytes(makeOutputName(file.name, mode === "clear" ? "metadata-cleared" : "metadata-updated"), await doc.save({ useObjectStreams: true }))];
+  return [
+    resultFromBytes(
+      makeOutputName(file.name, mode === "clear" ? "metadata-cleared" : "metadata-updated"),
+      await doc.save({ useObjectStreams: true }),
+      mode === "clear" ? "Cleared editable document metadata." : "Updated document metadata."
+    )
+  ];
 };
 
-export const compressPdf: ToolProcessor = async ([file], options) => {
+export const compressPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
   const mode = stringOption(options.mode, "lossless");
   if (mode === "raster") {
-    return [await rasterCompress(file, options)];
+    return [await rasterCompress(file, options, context)];
   }
 
+  setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
   if (booleanOption(options.removeMetadata, true)) {
     doc.setTitle("");
@@ -274,7 +382,8 @@ export const compressPdf: ToolProcessor = async ([file], options) => {
   return [resultFromBytes(makeOutputName(file.name, "compressed"), bytes, compressionSummary(file.size, bytes.length, "Lossless rebuild"))];
 };
 
-async function rasterCompress(file: File, options: ToolOptions): Promise<ToolResult> {
+async function rasterCompress(file: File, options: ToolOptions, context?: ToolRunContext): Promise<ToolResult> {
+  setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const output = await PDFDocument.create();
   const scale = numberOption(options.rasterScale, 1.1);
@@ -282,10 +391,13 @@ async function rasterCompress(file: File, options: ToolOptions): Promise<ToolRes
   const { renderPdfPageToBlob } = await import("../utils/renderPdf");
 
   for (let index = 0; index < source.getPageCount(); index += 1) {
+    setProgress(context, `Rasterizing page ${index + 1} of ${source.getPageCount()}`);
     const blob = await renderPdfPageToBlob(file, index + 1, scale, "image/jpeg", quality);
     const image = await output.embedJpg(await fileToUint8Array(blob));
-    const page = output.addPage([image.width, image.height]);
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+    const { width, height } = source.getPage(index).getSize();
+    const page = output.addPage([width, height]);
+    page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
+    page.drawImage(image, { x: 0, y: 0, width, height });
   }
 
   const bytes = await output.save({ useObjectStreams: true });
@@ -294,6 +406,10 @@ async function rasterCompress(file: File, options: ToolOptions): Promise<ToolRes
     bytes,
     `${compressionSummary(file.size, bytes.length, "Raster rebuild")} Selectable text is not preserved.`
   );
+}
+
+function setProgress(context: ToolRunContext | undefined, message: string): void {
+  context?.onProgress?.(message);
 }
 
 function drawPlacedText(
@@ -339,6 +455,37 @@ function drawPlacedText(
     rotate: degrees(options.angle),
     opacity: options.opacity
   });
+}
+
+function drawTiledText(
+  page: PDFPage,
+  text: string,
+  font: PDFFont,
+  size: number,
+  options: {
+    color: ReturnType<typeof hexToRgb>;
+    opacity: number;
+    angle: number;
+  }
+): void {
+  const { width, height } = page.getSize();
+  const textWidth = font.widthOfTextAtSize(text, size);
+  const horizontalStep = Math.max(textWidth * 1.9, 180);
+  const verticalStep = Math.max(size * 5, 120);
+
+  for (let y = -verticalStep; y < height + verticalStep; y += verticalStep) {
+    for (let x = -horizontalStep; x < width + horizontalStep; x += horizontalStep) {
+      page.drawText(text, {
+        x,
+        y,
+        size,
+        font,
+        color: options.color,
+        rotate: degrees(options.angle),
+        opacity: options.opacity
+      });
+    }
+  }
 }
 
 async function embedImage(pdf: PDFDocument, file: File): Promise<PDFImage> {
