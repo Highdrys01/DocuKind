@@ -5,15 +5,20 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 
 test("renders the dashboard", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /PDF and image work/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /PDF tools/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Merge PDF/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Resize Image/ })).toHaveCount(0);
+  await page.getByRole("button", { name: /Image Tools/ }).click();
+  await expect(page.getByRole("heading", { name: /Image tools/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Resize Image/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Merge PDF/ })).toHaveCount(0);
 });
 
 test("prepares local converter packs without upload inputs", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /^Local$/ }).click();
   await expect(page.getByRole("button", { name: /PDF to Word/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Word to PDF/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Certified Digital Signature/ })).toBeVisible();
 
   await page.getByRole("button", { name: /PDF to Word/ }).click();
   await expect(page.getByRole("heading", { name: "PDF to Word" })).toBeVisible();
@@ -26,8 +31,7 @@ test("prepares local converter packs without upload inputs", async ({ page }) =>
   expect(pdfToWordZip.file("convert_pdf_to_word.py")).toBeTruthy();
   expect(await pdfToWordZip.file("requirements.txt")!.async("text")).toContain("pdf2docx==0.5.12");
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Local$/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
   await page.getByRole("button", { name: /Word to PDF/ }).click();
   await page.getByRole("button", { name: /Prepare Word to PDF Pack/ }).click();
   await expect(page.getByText("docukind-word-to-pdf-local.zip")).toBeVisible();
@@ -35,6 +39,14 @@ test("prepares local converter packs without upload inputs", async ({ page }) =>
   const wordToPdfZip = await JSZip.loadAsync(await readFile(await downloadFirst(page)));
   expect(wordToPdfZip.file("convert_office_to_pdf.py")).toBeTruthy();
   expect(await wordToPdfZip.file("README.md")!.async("text")).toContain("LibreOffice");
+
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await clickTool(page, /Certified Digital Signature/);
+  await page.getByRole("button", { name: /Prepare Certified Digital Signature/ }).click();
+  await expect(page.getByText("docukind-certified-signature-local.zip")).toBeVisible();
+  const certZip = await JSZip.loadAsync(await readFile(await downloadFirst(page)));
+  expect(certZip.file("certify_sign_pdf.py")).toBeTruthy();
+  expect(await certZip.file("README.md")!.async("text")).toContain("DocuKind does not claim");
 });
 
 test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
@@ -68,11 +80,42 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
   await expect(page.getByText("docukind-merged.pdf")).toBeVisible();
 });
 
+test("places and exports a visual PDF signature", async ({ page }) => {
+  await page.goto("/");
+  await clickTool(page, /Sign PDF/);
+  await expect(page.getByRole("heading", { name: "Sign PDF" })).toBeVisible();
+
+  const source = await makePdf("sign-source");
+  await page.getByTestId("file-input").setInputFiles({ name: "sign-source.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
+  const canvas = page.locator("canvas.signature-page-canvas").first();
+  await expect(canvas).toBeVisible();
+  await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
+
+  await page.getByLabel("Full name").fill("Ada Lovelace");
+  await placeFieldOnPreview(page, 0.32, 0.72);
+  await expect(page.locator(".signature-field-box")).toBeVisible();
+
+  const field = page.locator(".signature-field-box").first();
+  const fieldBox = await field.boundingBox();
+  if (!fieldBox) throw new Error("Signature field did not have a bounding box.");
+  await page.mouse.move(fieldBox.x + fieldBox.width / 2, fieldBox.y + fieldBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(fieldBox.x + fieldBox.width / 2 + 42, fieldBox.y + fieldBox.height / 2 - 18);
+  await page.mouse.up();
+
+  await page.getByRole("button", { name: /^Sign PDF$/ }).click();
+  await expect(page.getByText("sign-source-signed.pdf")).toBeVisible();
+
+  const signedPdf = await readFile(await downloadFirst(page));
+  const signedDoc = await PDFDocument.load(signedPdf);
+  expect(signedDoc.getPageCount()).toBe(1);
+});
+
 test("resizes and crops images with downloadable outputs", async ({ page }) => {
   await page.goto("/");
   const image = await makePngFixture(page, 160, 100);
 
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Resize Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Width").fill("80");
@@ -84,8 +127,8 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   const resized = await downloadFirst(page);
   expect(readPngSize(await readFile(resized))).toEqual({ width: 80, height: 40 });
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Crop Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Selected crop").fill("25%,20%,50%,50%");
@@ -95,8 +138,8 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   const cropped = await downloadFirst(page);
   expect(readPngSize(await readFile(cropped))).toEqual({ width: 80, height: 50 });
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Compress Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Output", { exact: true }).selectOption("jpeg");
@@ -115,7 +158,7 @@ test("compresses images with transparency, targets, resize bounds, and batch ZIP
   await page.goto("/");
   const transparent = await makeTransparentPngFixture(page, 120, 80);
 
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Compress Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "transparent.png", mimeType: "image/png", buffer: transparent });
   await page.getByLabel("Output", { exact: true }).selectOption("png");
@@ -169,7 +212,7 @@ test("converts, watermarks, memes, and redacts images", async ({ page }) => {
   await page.goto("/");
   const image = await makePngFixture(page, 160, 100);
 
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Convert to JPG/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByRole("button", { name: /Run Convert to JPG/ }).click();
@@ -178,8 +221,8 @@ test("converts, watermarks, memes, and redacts images", async ({ page }) => {
   expect(jpg[0]).toBe(0xff);
   expect(jpg[1]).toBe(0xd8);
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Watermark Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Text").fill("DOCUKIND");
@@ -187,17 +230,17 @@ test("converts, watermarks, memes, and redacts images", async ({ page }) => {
   await page.getByRole("button", { name: /Run Watermark Image/ }).click();
   await expect(page.getByText("fixture-watermarked.png")).toBeVisible();
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Meme Generator/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Top text").fill("SHIP IT");
   await page.getByRole("button", { name: /Run Meme Generator/ }).click();
   await expect(page.getByText("fixture-meme.png")).toBeVisible();
 
-  await page.getByRole("button", { name: "Tools" }).click();
-  await page.getByRole("button", { name: /^Image$/ }).click();
-  await page.getByRole("button", { name: /Blur \/ Redact Image/ }).click();
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("button", { name: /Image Tools/ }).click();
+  await clickTool(page, /Blur \/ Redact Image/);
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await page.getByLabel("Regions").fill("0%,0%,50%,50%");
   await page.getByLabel("Mode").selectOption("redact");
@@ -260,6 +303,35 @@ async function downloadFirst(page: import("@playwright/test").Page): Promise<str
   const path = await download.path();
   if (!path) throw new Error("Download did not produce a local file.");
   return path;
+}
+
+async function clickTool(page: import("@playwright/test").Page, name: RegExp): Promise<void> {
+  await page.getByRole("button", { name }).evaluate((element) => {
+    (element as HTMLButtonElement).click();
+  });
+}
+
+async function placeFieldOnPreview(page: import("@playwright/test").Page, xRatio: number, yRatio: number): Promise<void> {
+  await page.locator(".signature-overlay").evaluate((element, point) => {
+    const rect = element.getBoundingClientRect();
+    element.dispatchEvent(new PointerEvent("pointerdown", {
+      bubbles: true,
+      clientX: rect.left + rect.width * point.xRatio,
+      clientY: rect.top + rect.height * point.yRatio,
+      pointerId: 1,
+      pointerType: "mouse"
+    }));
+  }, { xRatio, yRatio });
+}
+
+function isCanvasNonBlank(element: HTMLCanvasElement): boolean {
+  const context = element.getContext("2d");
+  if (!context) return false;
+  const data = context.getImageData(0, 0, element.width, element.height).data;
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index] < 245 || data[index + 1] < 245 || data[index + 2] < 245) return true;
+  }
+  return false;
 }
 
 async function downloadZip(page: import("@playwright/test").Page): Promise<string> {

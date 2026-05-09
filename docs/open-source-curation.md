@@ -52,6 +52,7 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 | [PDFKit](https://github.com/foliojs/pdfkit) | PDF create | MIT, verify before install | 2 | Defer | Node-oriented and overlaps with pdf-lib. |
 | [pdf2docx](https://github.com/ArtifexSoftware/pdf2docx) | PDF to Word | MIT in current Artifex release, user-installed in local pack | 3 | Local pack | Used by the PDF to Word download pack, not bundled into the browser app. Best for digital PDFs. |
 | [LibreOffice](https://www.libreoffice.org/) | Office to PDF | MPL-2.0 / open-source suite, user-installed | 3 | Local pack | Used by Word/PPT/Excel to PDF download packs through local headless conversion. Not bundled. |
+| [pyHanko](https://docs.pyhanko.eu/) / [pyhanko-cli](https://pypi.org/project/pyhanko-cli/) | Certified PDF signing | MIT, user-installed in local pack | 4 | Local pack | Used by the Certified Digital Signature pack for local PKCS#12 signing with optional visible fields and timestamp URLs. Not bundled into the browser app. |
 | [canvg](https://github.com/canvg/canvg) | SVG render | MIT, verify before install | 4 | Evaluate later | Possible SVG-to-image/PDF workflows. |
 | [SVGO](https://github.com/svg/svgo) | SVG optimize | MIT, verify before install | 3 | Evaluate later | Only relevant if SVG tools are added. |
 | [heic2any](https://github.com/alexcorvi/heic2any) | HEIC convert | MIT, verify before install | 3 | Guarded evaluate | Only ship HEIC if decoding is tested across target browsers. |
@@ -73,6 +74,7 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 - Cropper.js is used as a UX benchmark, not copied. DocuKind now has its own aspect-ratio-aware region selector.
 - browser-image-compression is used as a workflow benchmark, not copied. DocuKind now supports target-size compression for JPG/WebP output and transparent PNG/WebP-safe compression behavior.
 - Backend-grade conversion is now treated as local tooling instead of fake browser tooling. PDF to Word, Word to PDF, PowerPoint to PDF, and Excel to PDF generate tool-specific ZIP packs with local scripts and honest requirements.
+- Visual Sign PDF stays browser-only and embeds appearances with pdf-lib. Certified cryptographic signing is deliberately separate as a pyHanko local pack, because a static site cannot issue certificates, verify identity, or promise qualified/eIDAS legal status by itself.
 
 ## Next Upgrade Queue
 

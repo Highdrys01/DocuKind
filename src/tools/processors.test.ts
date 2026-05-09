@@ -69,7 +69,19 @@ describe("PDF processors", () => {
     const file = await makePdf("decorate", 2);
     await expectPageCount((await watermarkPdf([file], { text: "DRAFT", pages: "all", size: 20, tile: true }))[0], 2);
     await expectPageCount((await pageNumbersPdf([file], { pages: "all", startAt: 1, includeTotal: true }))[0], 2);
-    await expectPageCount((await signPdf([file], { signatureText: "Ada", pages: "last" }))[0], 2);
+    await expectPageCount((await signPdf([file], {
+      placements: [{
+        id: "sig-1",
+        pageIndex: 1,
+        kind: "signature",
+        x: 40,
+        y: 40,
+        width: 140,
+        height: 42,
+        value: "Ada",
+        color: "#1f2a24"
+      }]
+    }))[0], 2);
     await expectPageCount((await metadataPdf([file], { mode: "clear" }))[0], 2);
   });
 
@@ -88,6 +100,20 @@ describe("PDF processors", () => {
     const [result] = await compressPdf([file], { mode: "lossless", removeMetadata: true });
     await expectPageCount(result, 2);
     expect(result.summary).toContain("Lossless rebuild");
+  });
+
+  it("signs PDFs with multiple visual placement types", async () => {
+    const file = await makePdf("visual-sign", 2);
+    const [result] = await signPdf([file], {
+      placements: [
+        { id: "sig", pageIndex: 0, kind: "signature", x: 32, y: 32, width: 120, height: 40, value: "Ada", imageData: pngDataUrl() },
+        { id: "date", pageIndex: 0, kind: "date", x: 180, y: 32, width: 100, height: 24, value: "5/9/2026" },
+        { id: "text", pageIndex: 1, kind: "text", x: 32, y: 90, width: 160, height: 30, value: "Approved" }
+      ]
+    });
+
+    await expectPageCount(result, 2);
+    expect(result.summary).toContain("3 visual signing fields");
   });
 });
 
@@ -116,4 +142,8 @@ function pngBytes(): Uint8Array {
   return Uint8Array.from(
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64")
   );
+}
+
+function pngDataUrl(): string {
+  return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 }

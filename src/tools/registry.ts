@@ -42,6 +42,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "merge-pdf",
     title: "Merge PDF",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Combine PDFs in the order shown.",
@@ -55,6 +56,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "split-pdf",
     title: "Split PDF",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Create one file per page or by ranges.",
@@ -88,6 +90,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "organize-pdf",
     title: "Organize Pages",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Reorder pages with a custom sequence.",
@@ -116,6 +119,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "rotate-pdf",
     title: "Rotate PDF",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Turn selected pages permanently.",
@@ -142,6 +146,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "delete-pages",
     title: "Delete Pages",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Remove unwanted pages.",
@@ -155,6 +160,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "extract-pages",
     title: "Extract Pages",
+    suite: "pdf",
     kind: "pdf",
     category: "Organize",
     tagline: "Pull selected pages into a new PDF.",
@@ -168,6 +174,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "images-to-pdf",
     title: "Images to PDF",
+    suite: "pdf",
     kind: "pdf",
     category: "Convert",
     tagline: "Turn JPG, PNG, or WebP images into pages.",
@@ -221,6 +228,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "pdf-to-images",
     title: "PDF to Images",
+    suite: "pdf",
     kind: "pdf",
     category: "Convert",
     tagline: "Export pages as PNG or JPG.",
@@ -265,6 +273,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "pdf-to-word",
     title: "PDF to Word",
+    suite: "pdf",
     kind: "local",
     category: "Convert",
     tagline: "Download an offline DOCX converter pack.",
@@ -280,6 +289,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "word-to-pdf",
     title: "Word to PDF",
+    suite: "pdf",
     kind: "local",
     category: "Convert",
     tagline: "Download a local LibreOffice PDF pack.",
@@ -295,6 +305,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "powerpoint-to-pdf",
     title: "PowerPoint to PDF",
+    suite: "pdf",
     kind: "local",
     category: "Convert",
     tagline: "Download an offline presentation converter.",
@@ -310,6 +321,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "excel-to-pdf",
     title: "Excel to PDF",
+    suite: "pdf",
     kind: "local",
     category: "Convert",
     tagline: "Download an offline spreadsheet converter.",
@@ -325,6 +337,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "watermark",
     title: "Watermark",
+    suite: "pdf",
     kind: "pdf",
     category: "Edit",
     tagline: "Stamp text across selected pages.",
@@ -347,6 +360,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "page-numbers",
     title: "Page Numbers",
+    suite: "pdf",
     kind: "pdf",
     category: "Edit",
     tagline: "Add simple page labels.",
@@ -369,26 +383,37 @@ export const tools: ToolDefinition[] = [
   {
     id: "sign-pdf",
     title: "Sign PDF",
+    suite: "pdf",
     kind: "pdf",
-    category: "Sign",
-    tagline: "Apply a typed signature locally.",
+    category: "Security",
+    tagline: "Drag visual signatures anywhere on a PDF.",
     icon: "PenLine",
     accepts: "application/pdf,.pdf",
     multiple: false,
     minFiles: 1,
-    options: [
-      { name: "signatureText", label: "Signature", type: "text", defaultValue: "", placeholder: "Your name" },
-      pageRangeField("last page number or all"),
-      { name: "position", label: "Position", type: "select", defaultValue: "bottom-right", choices: positionChoices },
-      { name: "size", label: "Size", type: "number", defaultValue: 28, min: 8, max: 96, step: 2 },
-      { name: "color", label: "Color", type: "color", defaultValue: "#1f2a24" },
-      { name: "includeDate", label: "Include date", type: "checkbox", defaultValue: false }
-    ],
+    options: [],
     processor: () => import("./processors").then((module) => module.signPdf)
+  },
+  {
+    id: "certified-signature-local",
+    title: "Certified Digital Signature (Local)",
+    suite: "pdf",
+    kind: "local",
+    category: "Security",
+    tagline: "Download a local certificate signing pack.",
+    icon: "ShieldCheck",
+    accepts: "application/pdf,.pdf",
+    multiple: false,
+    minFiles: 0,
+    options: [],
+    downloadOnly: true,
+    downloadNotice: "Cryptographic PDF signing needs the user's own certificate and local key handling. This pack uses pyHanko locally and does not claim legal validity beyond the user's certificate authority.",
+    processor: () => import("./localToolProcessors").then((module) => module.certifiedSignatureLocalPack)
   },
   {
     id: "metadata",
     title: "Metadata",
+    suite: "pdf",
     kind: "pdf",
     category: "Edit",
     tagline: "Clear or update document properties.",
@@ -417,6 +442,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "compress",
     title: "Basic Compress",
+    suite: "pdf",
     kind: "pdf",
     category: "Optimize",
     tagline: "Rebuild PDFs or rasterize scans.",
@@ -445,6 +471,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "compress-image",
     title: "Compress Image",
+    suite: "image",
     kind: "image",
     category: "Optimize",
     tagline: "Shrink images with quality controls.",
@@ -502,6 +529,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "resize-image",
     title: "Resize Image",
+    suite: "image",
     kind: "image",
     category: "Edit",
     tagline: "Resize by pixels or percentage.",
@@ -544,6 +572,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "crop-image",
     title: "Crop Image",
+    suite: "image",
     kind: "image",
     category: "Edit",
     tagline: "Crop with numeric or selected regions.",
@@ -566,6 +595,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "rotate-flip-image",
     title: "Rotate / Flip Image",
+    suite: "image",
     kind: "image",
     category: "Edit",
     tagline: "Rotate and mirror images in batches.",
@@ -596,6 +626,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "convert-to-jpg",
     title: "Convert to JPG",
+    suite: "image",
     kind: "image",
     category: "Convert",
     tagline: "Convert PNG, WebP, or GIF previews to JPG.",
@@ -612,6 +643,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "convert-from-jpg",
     title: "Convert from JPG",
+    suite: "image",
     kind: "image",
     category: "Convert",
     tagline: "Convert JPG to PNG, WebP, or GIF.",
@@ -635,6 +667,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "watermark-image",
     title: "Watermark Image",
+    suite: "image",
     kind: "image",
     category: "Security",
     tagline: "Stamp text watermarks on images.",
@@ -658,6 +691,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "meme-generator",
     title: "Meme Generator",
+    suite: "image",
     kind: "image",
     category: "Create",
     tagline: "Add bold top and bottom captions.",
@@ -679,6 +713,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "photo-editor",
     title: "Photo Editor",
+    suite: "image",
     kind: "image",
     category: "Edit",
     tagline: "Adjust, crop, rotate, and filter images.",
@@ -706,6 +741,7 @@ export const tools: ToolDefinition[] = [
   {
     id: "blur-redact-image",
     title: "Blur / Redact Image",
+    suite: "image",
     kind: "image",
     category: "Security",
     tagline: "Manually hide private regions.",

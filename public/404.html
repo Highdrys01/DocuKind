@@ -10,7 +10,14 @@
       (function () {
         var path = window.location.pathname;
         var marker = "/tool/";
-        var base = path.indexOf(marker) >= 0 ? path.slice(0, path.indexOf(marker)) + "/" : "/";
+        var base = "/";
+        if (path.indexOf(marker) >= 0) {
+          base = path.slice(0, path.indexOf(marker)) + "/";
+        } else if (path.slice(-4) === "/pdf") {
+          base = path.slice(0, -3);
+        } else if (path.slice(-6) === "/image") {
+          base = path.slice(0, -5);
+        }
         var route = path + window.location.search + window.location.hash;
         window.location.replace(base + "?route=" + encodeURIComponent(route));
       })();

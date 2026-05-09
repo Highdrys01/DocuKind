@@ -13,7 +13,7 @@ https://highdrys01.github.io/DocuKind/
 Basic workflow:
 
 1. Open DocuKind in a modern browser.
-2. Choose a PDF or Image tool from the dashboard.
+2. Use **PDF Tools** for documents or **Image Tools** for image work. `/` and `/pdf` open the PDF suite; `/image` opens the image suite.
 3. Add your PDF or image files.
 4. Adjust the tool settings if needed.
 5. Select **Run**.
@@ -21,7 +21,7 @@ Basic workflow:
 
 Your files stay on your device. DocuKind is a static browser app, so it does not upload files to a server.
 
-For tools that need a real desktop conversion engine, choose the **Local** filter. DocuKind downloads a tool-specific ZIP with scripts and instructions, then you run that converter on your own computer.
+For tools that need a real desktop conversion engine, DocuKind shows a dedicated PDF tool card that downloads a tool-specific ZIP with scripts and instructions. You run that converter on your own computer.
 
 ## Tools
 
@@ -41,7 +41,8 @@ For tools that need a real desktop conversion engine, choose the **Local** filte
 - **Excel to PDF**: download a local LibreOffice-based converter pack for XLS, XLSX, ODS, and CSV spreadsheets.
 - **Watermark**: add single or repeating text watermarks with position, color, size, angle, and opacity controls.
 - **Page numbers**: add simple page labels with custom prefix/suffix and optional total page count.
-- **Sign PDF**: place a typed signature on selected pages.
+- **Sign PDF**: use a visual signing workspace with page preview, thumbnails, typed/drawn/uploaded signature appearances, initials, name, date, custom text, color choices, drag placement, resizing, nudging, duplicate, delete, and copy-to-page controls.
+- **Certified Digital Signature (Local)**: download a local pyHanko-based pack for cryptographic certificate signing with your own `.p12` or `.pfx` certificate.
 - **Metadata**: clear or set title, author, subject, and keywords.
 - **Basic compress**: rebuild PDFs losslessly or rasterize scanned PDFs.
 
@@ -68,6 +69,7 @@ Local packs are for conversion jobs that should not be faked in a browser:
 
 - **PDF to Word** uses Python and pdf2docx. It works best on digital PDFs with selectable text. Scanned PDFs need OCR first.
 - **Office to PDF packs** use LibreOffice headless conversion. Install LibreOffice locally, unzip the pack, and run the included macOS/Linux or Windows script.
+- **Certified Digital Signature** uses pyHanko locally with your own PKCS#12 certificate. It supports visible signature coordinates and an optional RFC 3161 timestamp URL. Legal validity depends on your certificate authority, jurisdiction, and signing policy; DocuKind does not provide certificates or claim qualified/eIDAS/ESIGN/UETA compliance by itself.
 
 These packs still follow the privacy model: files stay on your machine. The website only generates the ZIP instructions and scripts.
 
@@ -159,6 +161,7 @@ Server-grade conversion is handled as local download packs when a good offline e
 - If GitHub Pages shows a 404, confirm Pages is set to **GitHub Actions** and the deploy workflow completed successfully.
 - If you renamed the repository, use the new project URL. The old `/PDF-IMG/` path will 404 after the repo is renamed to `DocuKind`.
 - If a local pack will not run, confirm the pack's README requirements are installed. PDF-to-Word needs Python 3.10+. Office-to-PDF packs need Python 3 and LibreOffice.
+- If the certified signing pack will not run, confirm Python 3.10+, `pyhanko-cli`, your certificate file, and certificate password/passfile are available locally.
 
 ## License
 

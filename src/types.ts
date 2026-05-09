@@ -1,7 +1,8 @@
 export type ToolKind = "pdf" | "image" | "local";
+export type ToolSuite = "pdf" | "image";
 export type ToolCategory = "Organize" | "Convert" | "Edit" | "Sign" | "Optimize" | "Create" | "Security";
 
-export type OptionValue = string | number | boolean;
+export type OptionValue = string | number | boolean | null | OptionValue[] | { [key: string]: OptionValue };
 export type ToolOptions = Record<string, OptionValue>;
 
 export type OptionField =
@@ -58,6 +59,7 @@ export type ToolProcessor = (files: File[], options: ToolOptions, context?: Tool
 export type ToolDefinition = {
   id: string;
   title: string;
+  suite: ToolSuite;
   kind: ToolKind;
   category: ToolCategory;
   tagline: string;

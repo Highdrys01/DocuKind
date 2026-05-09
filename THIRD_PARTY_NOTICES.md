@@ -24,6 +24,7 @@ These tools are not bundled in the browser app. DocuKind generates optional ZIP 
 | --- | --- | --- | --- |
 | pdf2docx | MIT in current Artifex release, installed by the user in a local Python environment. | PDF to Word local conversion pack. | https://github.com/ArtifexSoftware/pdf2docx |
 | LibreOffice | MPL-2.0/open-source office suite, installed by the user separately. | Word, PowerPoint, and Excel to PDF local conversion packs. | https://www.libreoffice.org/ |
+| pyHanko / pyhanko-cli | MIT, installed by the user in a local Python environment. | Certified Digital Signature local signing pack for PKCS#12 certificates and optional timestamping. | https://docs.pyhanko.eu/ |
 
 ## Development Dependencies
 

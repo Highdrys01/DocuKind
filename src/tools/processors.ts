@@ -11,6 +11,7 @@ import type { ToolOptions, ToolProcessor, ToolResult, ToolRunContext } from "../
 import { fileToUint8Array, formatBytes, makeOutputName, resultFromBlob, resultFromBytes } from "../utils/file";
 import { allPageIndexes, formatPageLabel, parsePageSelection, parseRangeGroups } from "../utils/pageRanges";
 import { booleanOption, copySelectedPages, hexToRgb, loadPdf, numberOption, pageIndexesFor, stringOption } from "../utils/pdf";
+import { dataUrlToBytes, parseSignaturePlacements, validateSignaturePlacements, type SignaturePlacement } from "../utils/signatures";
 
 const PAGE_SIZES: Record<string, [number, number]> = {
   a4: [595.28, 841.89],
@@ -298,28 +299,42 @@ export const pageNumbersPdf: ToolProcessor = async ([file], options, context) =>
 export const signPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
-  const signature = stringOption(options.signatureText).trim();
-  if (!signature) throw new Error("Enter a signature.");
-
   setProgress(context, `Reading ${file.name}`);
   const doc = await loadPdf(file);
-  const font = await doc.embedFont(StandardFonts.HelveticaOblique);
-  const selected = parsePageSelection(stringOption(options.pages), doc.getPageCount());
-  const size = numberOption(options.size, 28);
-  const color = hexToRgb(stringOption(options.color, "#1f2a24"));
-  const position = stringOption(options.position, "bottom-right");
-  const includeDate = booleanOption(options.includeDate);
-  const text = includeDate ? `${signature}  ${new Date().toLocaleDateString()}` : signature;
+  const placements = parseSignaturePlacements(options.placements);
+  const pageSizes = doc.getPages().map((page) => page.getSize());
+  const validPlacements = validateSignaturePlacements(placements, pageSizes);
+  const fonts = {
+    script: await doc.embedFont(StandardFonts.TimesRomanItalic),
+    formal: await doc.embedFont(StandardFonts.HelveticaOblique),
+    classic: await doc.embedFont(StandardFonts.CourierOblique),
+    plain: await doc.embedFont(StandardFonts.Helvetica)
+  };
 
-  for (const index of selected) {
-    drawPlacedText(doc.getPage(index), text, font, size, position, { color, opacity: 1, angle: 0 });
+  for (const placement of validPlacements) {
+    setProgress(context, `Applying field ${validPlacements.indexOf(placement) + 1} of ${validPlacements.length}`);
+    const page = doc.getPage(placement.pageIndex);
+    if (placement.imageData) {
+      const image = await embedSignatureImage(doc, placement);
+      page.drawImage(image, {
+        x: placement.x,
+        y: placement.y,
+        width: placement.width,
+        height: placement.height,
+        rotate: degrees(placement.rotation ?? 0),
+        opacity: placement.opacity ?? 1
+      });
+      continue;
+    }
+
+    drawSignatureText(page, placement, fonts[placement.fontStyle ?? "script"]);
   }
 
   return [
     resultFromBytes(
       makeOutputName(file.name, "signed"),
       await doc.save({ useObjectStreams: true }),
-      `Added typed signature to ${selected.length} page${selected.length === 1 ? "" : "s"}.`
+      `Added ${validPlacements.length} visual signing field${validPlacements.length === 1 ? "" : "s"} locally.`
     )
   ];
 };
@@ -486,6 +501,49 @@ function drawTiledText(
       });
     }
   }
+}
+
+async function embedSignatureImage(pdf: PDFDocument, placement: SignaturePlacement): Promise<PDFImage> {
+  if (!placement.imageData) throw new Error("Signature image is missing.");
+  const { bytes, mimeType } = dataUrlToBytes(placement.imageData);
+
+  if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
+    return pdf.embedJpg(bytes);
+  }
+
+  if (mimeType === "image/png") {
+    return pdf.embedPng(bytes);
+  }
+
+  throw new Error("Signature images must be PNG or JPG.");
+}
+
+function drawSignatureText(page: PDFPage, placement: SignaturePlacement, font: PDFFont): void {
+  const text = placement.value.trim();
+  const padding = Math.min(8, placement.width * 0.08);
+  const maxWidth = Math.max(1, placement.width - padding * 2);
+  const maxHeight = Math.max(1, placement.height - padding * 2);
+  const size = fitTextSize(font, text, maxWidth, maxHeight, placement.kind === "signature" ? 30 : 15);
+  const y = placement.y + Math.max(padding, (placement.height - size) / 2);
+
+  page.drawText(text, {
+    x: placement.x + padding,
+    y,
+    size,
+    font,
+    color: hexToRgb(placement.color ?? "#1f2a24"),
+    rotate: degrees(placement.rotation ?? 0),
+    opacity: placement.opacity ?? 1,
+    maxWidth
+  });
+}
+
+function fitTextSize(font: PDFFont, text: string, maxWidth: number, maxHeight: number, preferred: number): number {
+  let size = Math.min(preferred, maxHeight);
+  while (size > 6 && font.widthOfTextAtSize(text, size) > maxWidth) {
+    size -= 1;
+  }
+  return Math.max(6, size);
 }
 
 async function embedImage(pdf: PDFDocument, file: File): Promise<PDFImage> {

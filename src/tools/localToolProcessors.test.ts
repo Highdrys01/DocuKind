@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   excelToPdfLocalPack,
+  certifiedSignatureLocalPack,
   pdfToWordLocalPack,
   powerpointToPdfLocalPack,
   wordToPdfLocalPack
@@ -47,6 +48,17 @@ describe("local tool packs", () => {
       await expectFileContains(zip, "convert_office_to_pdf.py", "LibreOffice");
       await expectFileContains(zip, "README.md", "runs locally");
     }
+  });
+
+  it("creates a certified signature local pack with legal warnings", async () => {
+    const [result] = await certifiedSignatureLocalPack([], {});
+    expect(result.filename).toBe("docukind-certified-signature-local.zip");
+
+    const zip = await loadZip(result.blob);
+    expect(zip.file("certify_sign_pdf.py")).toBeTruthy();
+    await expectFileContains(zip, "requirements.txt", "pyHanko[image-support,opentype]==0.35.1");
+    await expectFileContains(zip, "README.md", "DocuKind does not claim");
+    await expectFileContains(zip, "certify_sign_pdf.py", "--timestamp-url");
   });
 });
 

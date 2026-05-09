@@ -98,6 +98,37 @@ export const excelToPdfLocalPack: ToolProcessor = async () => {
   }));
 };
 
+export const certifiedSignatureLocalPack: ToolProcessor = async () => {
+  return buildPack({
+    filename: "docukind-certified-signature-local.zip",
+    summary: "Local certified signing pack. Runs pyHanko on the user's computer with their own certificate; DocuKind does not upload files or provide legal validity.",
+    files: [
+      {
+        path: "README.md",
+        content: certifiedSignatureReadme
+      },
+      {
+        path: "requirements.txt",
+        content: "pyHanko[image-support,opentype]==0.35.1\npyhanko-cli==0.4.0"
+      },
+      {
+        path: "certify_sign_pdf.py",
+        content: certifiedSignaturePython,
+        executable: true
+      },
+      {
+        path: "run-mac-linux.sh",
+        content: certifiedSignatureShell,
+        executable: true
+      },
+      {
+        path: "run-windows.bat",
+        content: certifiedSignatureBatch
+      }
+    ]
+  });
+};
+
 function createOfficeToPdfPack(config: {
   filename: string;
   title: string;
@@ -442,4 +473,150 @@ if errorlevel 1 (
   echo Python 3 and LibreOffice are required. Install Python from https://www.python.org/downloads/ and LibreOffice from https://www.libreoffice.org/download/download-libreoffice/
   exit /b 1
 )
+`;
+
+const certifiedSignatureReadme = `
+# DocuKind Certified Digital Signature Local Pack
+
+This pack signs a PDF on your own computer with your own PKCS#12 certificate file (\`.p12\` or \`.pfx\`) using pyHanko.
+
+## Important Legal Note
+
+DocuKind does not provide a certificate, identity verification, timestamp authority, trust service, or legal advice. The legal effect of a digital signature depends on your certificate issuer, jurisdiction, signing policy, and validation setup. This pack can create cryptographic PDF signatures, but DocuKind does not claim eIDAS, qualified, ESIGN, UETA, or other compliance by itself.
+
+## Requirements
+
+- Python 3.10+
+- A PKCS#12 certificate file (\`.p12\` or \`.pfx\`)
+- The certificate password/passphrase
+- Optional: a public RFC 3161 timestamp URL
+
+## macOS / Linux
+
+\`\`\`sh
+chmod +x run-mac-linux.sh
+./run-mac-linux.sh input.pdf certificate.p12 signed.pdf --page 1 --x 72 --y 72 --width 180 --height 64
+\`\`\`
+
+With a timestamp URL:
+
+\`\`\`sh
+./run-mac-linux.sh input.pdf certificate.p12 signed.pdf --timestamp-url "https://example-tsa.invalid"
+\`\`\`
+
+## Windows
+
+\`\`\`bat
+run-windows.bat "C:\\path\\to\\input.pdf" "C:\\path\\to\\certificate.pfx" "C:\\path\\to\\signed.pdf" --page 1 --x 72 --y 72 --width 180 --height 64
+\`\`\`
+
+## Coordinates
+
+Visible signature coordinates use PDF points. The origin is the bottom-left of the page.
+`;
+
+const certifiedSignaturePython = String.raw`
+#!/usr/bin/env python3
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Sign a PDF locally with pyHanko and a PKCS#12 certificate.")
+    parser.add_argument("input_pdf", help="Input PDF path.")
+    parser.add_argument("certificate", help="PKCS#12 certificate path (.p12 or .pfx).")
+    parser.add_argument("output_pdf", help="Output signed PDF path.")
+    parser.add_argument("--page", type=int, default=1, help="Visible signature page number. Use 0 for invisible signature.")
+    parser.add_argument("--x", type=float, default=72, help="Visible signature x coordinate in PDF points.")
+    parser.add_argument("--y", type=float, default=72, help="Visible signature y coordinate in PDF points.")
+    parser.add_argument("--width", type=float, default=180, help="Visible signature width in PDF points.")
+    parser.add_argument("--height", type=float, default=64, help="Visible signature height in PDF points.")
+    parser.add_argument("--field-name", default="DocuKindSig1", help="PDF signature field name.")
+    parser.add_argument("--timestamp-url", default="", help="Optional RFC 3161 timestamp URL.")
+    parser.add_argument("--passfile", default="", help="Optional file containing certificate password.")
+    args = parser.parse_args()
+
+    input_pdf = Path(args.input_pdf).expanduser()
+    certificate = Path(args.certificate).expanduser()
+    output_pdf = Path(args.output_pdf).expanduser()
+
+    if not input_pdf.exists():
+        print(f"Input PDF not found: {input_pdf}", file=sys.stderr)
+        return 2
+    if not certificate.exists():
+        print(f"Certificate not found: {certificate}", file=sys.stderr)
+        return 2
+
+    pyhanko = shutil.which("pyhanko")
+    if not pyhanko:
+        print("pyHanko CLI was not found. Run the setup script again or install pyhanko-cli.", file=sys.stderr)
+        return 2
+
+    output_pdf.parent.mkdir(parents=True, exist_ok=True)
+    if args.page <= 0:
+        field = args.field_name
+    else:
+        x1 = args.x
+        y1 = args.y
+        x2 = args.x + args.width
+        y2 = args.y + args.height
+        field = f"{args.page}/{x1},{y1},{x2},{y2}/{args.field_name}"
+
+    command = [pyhanko, "sign", "addsig", "--field", field]
+    if args.timestamp_url:
+        command.extend(["--timestamp-url", args.timestamp_url])
+    command.extend(["pkcs12"])
+    if args.passfile:
+        command.extend(["--passfile", args.passfile])
+    command.extend([str(input_pdf), str(output_pdf), str(certificate)])
+
+    print("Running:", " ".join(command))
+    completed = subprocess.run(command)
+    return completed.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+`;
+
+const certifiedSignatureShell = String.raw`
+#!/usr/bin/env sh
+set -eu
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Python 3.10+ is required. Install it from https://www.python.org/downloads/"
+  exit 1
+fi
+
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+  echo "Python 3.10+ is required."
+  exit 1
+fi
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR"
+
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python certify_sign_pdf.py "$@"
+`;
+
+const certifiedSignatureBatch = String.raw`
+@echo off
+setlocal
+cd /d "%~dp0"
+py -3.10 -m venv .venv
+if errorlevel 1 (
+  echo Python 3.10+ is required. Install it from https://www.python.org/downloads/
+  exit /b 1
+)
+call .venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python certify_sign_pdf.py %*
 `;

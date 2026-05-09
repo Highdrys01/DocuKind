@@ -3,6 +3,10 @@ export function getBasePath(pathname = window.location.pathname): string {
   const toolIndex = pathname.indexOf(marker);
   if (toolIndex >= 0) return pathname.slice(0, toolIndex);
 
+  for (const route of ["/pdf", "/image"]) {
+    if (pathname.endsWith(route)) return pathname.slice(0, -route.length);
+  }
+
   return pathname.replace(/\/(?:index\.html)?$/, "");
 }
 
