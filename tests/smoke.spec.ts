@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import JSZip from "jszip";
 import { readFile } from "node:fs/promises";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 
@@ -6,6 +7,34 @@ test("renders the dashboard", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /PDF and image work/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Merge PDF/ })).toBeVisible();
+});
+
+test("prepares local converter packs without upload inputs", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Local$/ }).click();
+  await expect(page.getByRole("button", { name: /PDF to Word/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Word to PDF/ })).toBeVisible();
+
+  await page.getByRole("button", { name: /PDF to Word/ }).click();
+  await expect(page.getByRole("heading", { name: "PDF to Word" })).toBeVisible();
+  await expect(page.getByTestId("file-input")).toHaveCount(0);
+  await expect(page.getByText(/Download a local tool pack/)).toBeVisible();
+  await page.getByRole("button", { name: /Prepare PDF to Word Pack/ }).click();
+  await expect(page.getByText("docukind-pdf-to-word-local.zip")).toBeVisible();
+
+  const pdfToWordZip = await JSZip.loadAsync(await readFile(await downloadFirst(page)));
+  expect(pdfToWordZip.file("convert_pdf_to_word.py")).toBeTruthy();
+  expect(await pdfToWordZip.file("requirements.txt")!.async("text")).toContain("pdf2docx==0.5.12");
+
+  await page.getByRole("button", { name: "Tools" }).click();
+  await page.getByRole("button", { name: /^Local$/ }).click();
+  await page.getByRole("button", { name: /Word to PDF/ }).click();
+  await page.getByRole("button", { name: /Prepare Word to PDF Pack/ }).click();
+  await expect(page.getByText("docukind-word-to-pdf-local.zip")).toBeVisible();
+
+  const wordToPdfZip = await JSZip.loadAsync(await readFile(await downloadFirst(page)));
+  expect(wordToPdfZip.file("convert_office_to_pdf.py")).toBeTruthy();
+  expect(await wordToPdfZip.file("README.md")!.async("text")).toContain("LibreOffice");
 });
 
 test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {

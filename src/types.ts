@@ -1,4 +1,4 @@
-export type ToolKind = "pdf" | "image";
+export type ToolKind = "pdf" | "image" | "local";
 export type ToolCategory = "Organize" | "Convert" | "Edit" | "Sign" | "Optimize" | "Create" | "Security";
 
 export type OptionValue = string | number | boolean;
@@ -66,5 +66,7 @@ export type ToolDefinition = {
   multiple: boolean;
   minFiles: number;
   options: OptionField[];
+  downloadOnly?: boolean;
+  downloadNotice?: string;
   processor: () => Promise<ToolProcessor>;
 };

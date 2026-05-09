@@ -96,7 +96,7 @@ function Dashboard() {
           <input value={query} placeholder="Search tools" onChange={(event) => setQuery(event.currentTarget.value)} />
         </label>
         <div className="segmented compact" aria-label="Tool type">
-          {["All", "PDF", "Image"].map((item) => (
+          {["All", "PDF", "Image", "Local"].map((item) => (
             <button
               className={item === kind ? "active" : ""}
               type="button"
@@ -172,10 +172,10 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
     try {
       const processor = await tool.processor();
-      setProgress("Processing");
+      setProgress(tool.downloadOnly ? "Preparing download pack" : "Processing");
       const output = await processor(files, options, { onProgress: setProgress });
       setResults(output);
-      setProgress(`Done: ${output.length} file${output.length === 1 ? "" : "s"} ready`);
+      setProgress(tool.downloadOnly ? "Done: download pack ready" : `Done: ${output.length} file${output.length === 1 ? "" : "s"} ready`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
       setProgress("");
@@ -204,24 +204,39 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
       <div className="workspace-grid">
         <div className="work-panel">
-          <FileDropzone tool={tool} files={files} onFilesChange={(next) => {
-            setFiles(next);
-            setResults([]);
-            setError("");
-          }} />
+          {tool.downloadOnly ? (
+            <section className="local-pack-card">
+              <span className="dropzone-icon">
+                <Icon name="Download" size={30} />
+              </span>
+              <div>
+                <h2>Download a local tool pack</h2>
+                <p>{tool.downloadNotice ?? "This advanced converter runs on your computer with local open-source software."}</p>
+                <small>No uploads, no accounts, no server processing.</small>
+              </div>
+            </section>
+          ) : (
+            <FileDropzone tool={tool} files={files} onFilesChange={(next) => {
+              setFiles(next);
+              setResults([]);
+              setError("");
+            }} />
+          )}
 
-          <section className="settings">
-            <div className="section-heading">
-              <h2>Settings</h2>
-            </div>
-            <ToolOptionsForm fields={tool.options} options={options} onChange={setOptions} />
-            {tool.id === "compress" && options.mode === "raster" && (
-              <p className="warning-copy">Raster scan rebuilds pages as images. Text selection and form fields will not survive.</p>
-            )}
-            {tool.options.some((option) => option.name === "pages") && (
-              <p className="quiet-copy">Page fields accept `all`, `first`, `last`, `odd`, `even`, and ranges like `2-6`.</p>
-            )}
-          </section>
+          {tool.options.length > 0 && (
+            <section className="settings">
+              <div className="section-heading">
+                <h2>Settings</h2>
+              </div>
+              <ToolOptionsForm fields={tool.options} options={options} onChange={setOptions} />
+              {tool.id === "compress" && options.mode === "raster" && (
+                <p className="warning-copy">Raster scan rebuilds pages as images. Text selection and form fields will not survive.</p>
+              )}
+              {tool.options.some((option) => option.name === "pages") && (
+                <p className="quiet-copy">Page fields accept `all`, `first`, `last`, `odd`, `even`, and ranges like `2-6`.</p>
+              )}
+            </section>
+          )}
 
           {(tool.id === "crop-image" || tool.id === "photo-editor") && (
             <ImageRegionSelector
@@ -256,13 +271,21 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
 
           <button className="button run-button" type="button" disabled={!canRun} onClick={runTool}>
             {isRunning ? <Icon name="Loader2" className="spin" size={18} /> : <Icon name={tool.icon} size={18} />}
-            Run {tool.title}
+            {tool.downloadOnly ? `Prepare ${tool.title} Pack` : `Run ${tool.title}`}
           </button>
 
           <ResultList results={results} />
         </div>
 
-        <PdfPreview file={files[0]} />
+        {tool.downloadOnly ? (
+          <aside className="preview local-preview">
+            <Icon name="ShieldCheck" size={30} />
+            <strong>Runs locally after download</strong>
+            <span>The ZIP includes scripts, setup steps, quality notes, and honest limits for this specific converter.</span>
+          </aside>
+        ) : (
+          <PdfPreview file={files[0]} />
+        )}
       </div>
     </div>
   );

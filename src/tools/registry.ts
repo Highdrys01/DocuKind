@@ -20,6 +20,9 @@ const pageRangeField = (placeholder = "all or 1,3-5") => ({
 });
 
 const imageAccepts = "image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif";
+const wordAccepts = "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx,.odt,.rtf";
+const powerpointAccepts = "application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,.ppt,.pptx,.odp";
+const spreadsheetAccepts = "application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.ods,.csv";
 
 const outputFormatChoices = [
   { label: "PNG", value: "png" },
@@ -258,6 +261,66 @@ export const tools: ToolDefinition[] = [
       }
     ],
     processor: () => import("./processors").then((module) => module.pdfToImages)
+  },
+  {
+    id: "pdf-to-word",
+    title: "PDF to Word",
+    kind: "local",
+    category: "Convert",
+    tagline: "Download an offline DOCX converter pack.",
+    icon: "Download",
+    accepts: "application/pdf,.pdf",
+    multiple: false,
+    minFiles: 0,
+    options: [],
+    downloadOnly: true,
+    downloadNotice: "High-quality PDF to Word conversion needs a local engine. This pack installs pdf2docx in a private Python environment and converts your PDF on your machine.",
+    processor: () => import("./localToolProcessors").then((module) => module.pdfToWordLocalPack)
+  },
+  {
+    id: "word-to-pdf",
+    title: "Word to PDF",
+    kind: "local",
+    category: "Convert",
+    tagline: "Download a local LibreOffice PDF pack.",
+    icon: "Download",
+    accepts: wordAccepts,
+    multiple: false,
+    minFiles: 0,
+    options: [],
+    downloadOnly: true,
+    downloadNotice: "Browser-only Word conversion is not professional enough. This pack uses LibreOffice locally for better fidelity and keeps documents off any server.",
+    processor: () => import("./localToolProcessors").then((module) => module.wordToPdfLocalPack)
+  },
+  {
+    id: "powerpoint-to-pdf",
+    title: "PowerPoint to PDF",
+    kind: "local",
+    category: "Convert",
+    tagline: "Download an offline presentation converter.",
+    icon: "Download",
+    accepts: powerpointAccepts,
+    multiple: false,
+    minFiles: 0,
+    options: [],
+    downloadOnly: true,
+    downloadNotice: "Presentations need layout-aware conversion. This pack runs LibreOffice on your computer so slides stay private and conversion quality is not faked in the browser.",
+    processor: () => import("./localToolProcessors").then((module) => module.powerpointToPdfLocalPack)
+  },
+  {
+    id: "excel-to-pdf",
+    title: "Excel to PDF",
+    kind: "local",
+    category: "Convert",
+    tagline: "Download an offline spreadsheet converter.",
+    icon: "Download",
+    accepts: spreadsheetAccepts,
+    multiple: false,
+    minFiles: 0,
+    options: [],
+    downloadOnly: true,
+    downloadNotice: "Spreadsheet PDF output depends on the sheet layout engine. This pack uses LibreOffice locally, with no uploads or cloud conversion.",
+    processor: () => import("./localToolProcessors").then((module) => module.excelToPdfLocalPack)
   },
   {
     id: "watermark",

@@ -16,6 +16,15 @@ DocuKind is built from original application code plus permissively licensed open
 | UPNG.js / upng-js | MIT | PNG color-quantized compression for the Compress Image tool. | https://github.com/photopea/UPNG.js |
 | gifenc | MIT | Browser GIF encoding. | https://github.com/mattdesl/gifenc |
 
+## Local Tool Pack References
+
+These tools are not bundled in the browser app. DocuKind generates optional ZIP packs that ask the user to install and run them locally.
+
+| Tool | License posture | Purpose | Source |
+| --- | --- | --- | --- |
+| pdf2docx | MIT in current Artifex release, installed by the user in a local Python environment. | PDF to Word local conversion pack. | https://github.com/ArtifexSoftware/pdf2docx |
+| LibreOffice | MPL-2.0/open-source office suite, installed by the user separately. | Word, PowerPoint, and Excel to PDF local conversion packs. | https://www.libreoffice.org/ |
+
 ## Development Dependencies
 
 | Package | License | Purpose | Source |

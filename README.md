@@ -21,6 +21,8 @@ Basic workflow:
 
 Your files stay on your device. DocuKind is a static browser app, so it does not upload files to a server.
 
+For tools that need a real desktop conversion engine, choose the **Local** filter. DocuKind downloads a tool-specific ZIP with scripts and instructions, then you run that converter on your own computer.
+
 ## Tools
 
 ### PDF Tools
@@ -33,6 +35,10 @@ Your files stay on your device. DocuKind is a static browser app, so it does not
 - **Extract pages**: save selected pages as a new PDF.
 - **Images to PDF**: turn JPG, PNG, or WebP images into PDF pages with fit, margin, page size, and background controls.
 - **PDF to images**: export selected pages as PNG or JPG files.
+- **PDF to Word**: download a local pdf2docx-based converter pack for editable DOCX output.
+- **Word to PDF**: download a local LibreOffice-based converter pack for DOC, DOCX, ODT, and RTF files.
+- **PowerPoint to PDF**: download a local LibreOffice-based converter pack for PPT, PPTX, and ODP presentations.
+- **Excel to PDF**: download a local LibreOffice-based converter pack for XLS, XLSX, ODS, and CSV spreadsheets.
 - **Watermark**: add single or repeating text watermarks with position, color, size, angle, and opacity controls.
 - **Page numbers**: add simple page labels with custom prefix/suffix and optional total page count.
 - **Sign PDF**: place a typed signature on selected pages.
@@ -55,6 +61,15 @@ Compression is intentionally honest. The default mode rebuilds PDFs losslessly a
 - **Blur / Redact Image**: manually select private areas and blur or cover them before downloading.
 
 Animated GIF uploads are decoded by the browser as a still preview frame for most image tools. The JPG-to-GIF tool can create a new animated GIF from multiple JPG frames.
+
+### Local Tool Packs
+
+Local packs are for conversion jobs that should not be faked in a browser:
+
+- **PDF to Word** uses Python and pdf2docx. It works best on digital PDFs with selectable text. Scanned PDFs need OCR first.
+- **Office to PDF packs** use LibreOffice headless conversion. Install LibreOffice locally, unzip the pack, and run the included macOS/Linux or Windows script.
+
+These packs still follow the privacy model: files stay on your machine. The website only generates the ZIP instructions and scripts.
 
 ## Page Ranges
 
@@ -116,9 +131,11 @@ First deploy note: if the workflow fails with `Not Found` during **Configure Pag
 
 ## Privacy Model
 
-DocuKind does not include a backend. Files are read into browser memory only for the selected action. Generated downloads are created with local `Blob` URLs and object URLs are revoked after use.
+DocuKind does not include a backend. Files are read into browser memory only for browser-safe actions. Generated downloads are created with local `Blob` URLs and object URLs are revoked after use.
 
 The uploader filters unsupported file types before processing. For example, PDF tools accept PDFs only, image tools accept browser-supported image formats, and Images to PDF accepts supported image files only.
+
+Local tool packs are downloaded as ZIP files and run separately by the user. They are not cloud jobs and do not send documents to DocuKind.
 
 ## Open-Source Curation
 
@@ -130,7 +147,7 @@ Use a current version of Chrome, Edge, Firefox, or Safari. Very large PDFs or im
 
 ## Not Included in v1
 
-Server-grade Office conversion, true PDF repair, full existing-text editing, OCR, AI upscaling, background removal, URL-based HTML to image, automatic face blur, and password cracking/unlocking are intentionally out of scope for this static release.
+Server-grade conversion is handled as local download packs when a good offline engine exists. True PDF repair, full existing-text editing, OCR, AI upscaling, background removal, URL-based HTML to image, automatic face blur, and password cracking/unlocking remain intentionally out of scope for the browser app until they can be done honestly.
 
 ## Troubleshooting
 
@@ -141,6 +158,7 @@ Server-grade Office conversion, true PDF repair, full existing-text editing, OCR
 - If raster compression is used, selectable text and form fields will not be preserved.
 - If GitHub Pages shows a 404, confirm Pages is set to **GitHub Actions** and the deploy workflow completed successfully.
 - If you renamed the repository, use the new project URL. The old `/PDF-IMG/` path will 404 after the repo is renamed to `DocuKind`.
+- If a local pack will not run, confirm the pack's README requirements are installed. PDF-to-Word needs Python 3.10+. Office-to-PDF packs need Python 3 and LibreOffice.
 
 ## License
 
