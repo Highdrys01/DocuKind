@@ -70,8 +70,9 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   await page.getByRole("button", { name: /^Image$/ }).click();
   await page.getByRole("button", { name: /Compress Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
-  await page.getByLabel("Output").selectOption("jpeg");
+  await page.getByLabel("Output", { exact: true }).selectOption("jpeg");
   await page.getByLabel("Target KB").fill("5");
+  await page.getByLabel("Skip larger output").uncheck();
   await page.getByRole("button", { name: /Run Compress Image/ }).click();
   await expect(page.getByText("fixture-compressed.jpg")).toBeVisible();
 
@@ -79,6 +80,60 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   expect(compressed[0]).toBe(0xff);
   expect(compressed[1]).toBe(0xd8);
   expect(compressed.byteLength).toBeLessThanOrEqual(5 * 1024);
+});
+
+test("compresses images with transparency, targets, resize bounds, and batch ZIP", async ({ page }) => {
+  await page.goto("/");
+  const transparent = await makeTransparentPngFixture(page, 120, 80);
+
+  await page.getByRole("button", { name: /^Image$/ }).click();
+  await page.getByRole("button", { name: /Compress Image/ }).click();
+  await page.getByTestId("file-input").setInputFiles({ name: "transparent.png", mimeType: "image/png", buffer: transparent });
+  await page.getByLabel("Output", { exact: true }).selectOption("png");
+  await page.getByLabel("Skip larger output").uncheck();
+  await page.getByRole("button", { name: /Run Compress Image/ }).click();
+  await expect(page.getByText("transparent-compressed.png")).toBeVisible();
+  await expect(page.getByText(/Transparency preserved/)).toBeVisible();
+
+  const png = await readFile(await downloadFirst(page));
+  const transparentPixel = await sampleImagePixel(page, png, 4, 4);
+  expect(transparentPixel.a).toBe(0);
+
+  await page.getByLabel("Output", { exact: true }).selectOption("jpeg");
+  await page.getByLabel("JPG background").fill("#00ff00");
+  await page.getByRole("button", { name: /Run Compress Image/ }).click();
+  await expect(page.getByText("transparent-compressed.jpg")).toBeVisible();
+  const jpg = await readFile(await downloadFirst(page));
+  const flattenedPixel = await sampleImagePixel(page, jpg, 4, 4, "image/jpeg");
+  expect(flattenedPixel.r).toBeLessThan(35);
+  expect(flattenedPixel.g).toBeGreaterThan(210);
+  expect(flattenedPixel.b).toBeLessThan(45);
+
+  await page.getByLabel("Output", { exact: true }).selectOption("png");
+  await page.getByLabel("Skip larger output").uncheck();
+  await page.getByLabel("Max width").fill("300");
+  await page.getByLabel("Max height").fill("300");
+  await page.getByRole("button", { name: /Run Compress Image/ }).click();
+  const bounded = await readFile(await downloadFirst(page));
+  expect(readPngSize(bounded)).toEqual({ width: 120, height: 80 });
+
+  const first = await makePngFixture(page, 220, 140);
+  const second = await makePngFixture(page, 180, 120);
+  await page.getByTestId("file-input").setInputFiles([
+    { name: "first.png", mimeType: "image/png", buffer: first },
+    { name: "second.png", mimeType: "image/png", buffer: second }
+  ]);
+  await page.getByLabel("Output", { exact: true }).selectOption("jpeg");
+  await page.getByLabel("Preset").selectOption("small");
+  await page.getByLabel("Target KB").fill("8");
+  await page.getByRole("button", { name: /Run Compress Image/ }).click();
+  await expect(page.getByText("first-compressed.jpg")).toBeVisible();
+  await expect(page.getByText("second-compressed.jpg")).toBeVisible();
+  await expect(page.getByText(/Batch total:/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /ZIP all/ })).toBeVisible();
+
+  const zip = await readFile(await downloadZip(page));
+  expect(zip.subarray(0, 2).toString()).toBe("PK");
 });
 
 test("converts, watermarks, memes, and redacts images", async ({ page }) => {
@@ -152,12 +207,38 @@ async function makePngFixture(page: import("@playwright/test").Page, width: numb
   return Buffer.from(dataUrl.split(",")[1], "base64");
 }
 
+async function makeTransparentPngFixture(page: import("@playwright/test").Page, width: number, height: number): Promise<Buffer> {
+  const dataUrl = await page.evaluate(({ width, height }) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d")!;
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "rgba(46, 90, 172, 0.78)";
+    context.fillRect(width * 0.25, height * 0.2, width * 0.65, height * 0.65);
+    context.fillStyle = "rgba(240, 93, 94, 0.92)";
+    context.fillRect(width * 0.42, height * 0.08, width * 0.35, height * 0.82);
+    return canvas.toDataURL("image/png");
+  }, { width, height });
+
+  return Buffer.from(dataUrl.split(",")[1], "base64");
+}
+
 async function downloadFirst(page: import("@playwright/test").Page): Promise<string> {
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /^Download$/ }).first().click();
   const download = await downloadPromise;
   const path = await download.path();
   if (!path) throw new Error("Download did not produce a local file.");
+  return path;
+}
+
+async function downloadZip(page: import("@playwright/test").Page): Promise<string> {
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: /ZIP all/ }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  if (!path) throw new Error("ZIP download did not produce a local file.");
   return path;
 }
 
@@ -172,10 +253,11 @@ async function sampleImagePixel(
   page: import("@playwright/test").Page,
   buffer: Buffer,
   x: number,
-  y: number
+  y: number,
+  mimeType = "image/png"
 ): Promise<{ r: number; g: number; b: number; a: number }> {
-  return page.evaluate(async ({ base64, x, y }) => {
-    const response = await fetch(`data:image/png;base64,${base64}`);
+  return page.evaluate(async ({ base64, x, y, mimeType }) => {
+    const response = await fetch(`data:${mimeType};base64,${base64}`);
     const blob = await response.blob();
     const bitmap = await createImageBitmap(blob);
     const canvas = document.createElement("canvas");
@@ -186,5 +268,5 @@ async function sampleImagePixel(
     const [r, g, b, a] = context.getImageData(x, y, 1, 1).data;
     bitmap.close();
     return { r, g, b, a };
-  }, { base64: buffer.toString("base64"), x, y });
+  }, { base64: buffer.toString("base64"), x, y, mimeType });
 }

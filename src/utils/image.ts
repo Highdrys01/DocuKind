@@ -1,5 +1,6 @@
 import picaFactory from "pica";
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
+import UPNG from "upng-js";
 import { formatBytes, makeOutputName, resultFromBlob, uint8ArrayToArrayBuffer } from "./file";
 import type { ToolResult } from "../types";
 
@@ -16,6 +17,7 @@ export type ImageRegion = {
 };
 
 export type ImageFit = "contain" | "cover" | "stretch" | "inside";
+export type ImageExportFormat = "png" | "jpeg" | "webp" | "gif";
 
 export type ImageTransform = {
   rotate?: number;
@@ -55,11 +57,11 @@ export function createCanvas(width: number, height: number): HTMLCanvasElement {
   return canvas;
 }
 
-export async function imageFileToCanvas(file: File, background = "#ffffff"): Promise<HTMLCanvasElement> {
+export async function imageFileToCanvas(file: File, background?: string | null): Promise<HTMLCanvasElement> {
   const bitmap = await loadImageFile(file);
   const canvas = createCanvas(bitmap.width, bitmap.height);
   const context = get2d(canvas);
-  fillBackground(context, canvas.width, canvas.height, background);
+  if (background) fillBackground(context, canvas.width, canvas.height, background);
   context.drawImage(bitmap, 0, 0);
   bitmap.close();
   return canvas;
@@ -78,7 +80,7 @@ export async function resizeCanvas(source: HTMLCanvasElement, width: number, hei
 
 export async function exportCanvas(
   canvas: HTMLCanvasElement,
-  format: "png" | "jpeg" | "webp" | "gif",
+  format: ImageExportFormat,
   quality = 0.86
 ): Promise<Blob> {
   if (format === "gif") {
@@ -91,6 +93,30 @@ export async function exportCanvas(
   }
 
   return pica.toBlob(canvas, mimeType, quality);
+}
+
+export function flattenCanvas(canvas: HTMLCanvasElement, background: string): HTMLCanvasElement {
+  const target = createCanvas(canvas.width, canvas.height);
+  const context = get2d(target);
+  fillBackground(context, target.width, target.height, background);
+  context.drawImage(canvas, 0, 0);
+  return target;
+}
+
+export function hasTransparentPixels(canvas: HTMLCanvasElement): boolean {
+  const data = get2d(canvas).getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] < 255) return true;
+  }
+  return false;
+}
+
+export function exportIndexedPngCanvas(canvas: HTMLCanvasElement, colors = 256): Blob {
+  const context = get2d(canvas);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const rgba = uint8ArrayToArrayBuffer(new Uint8Array(imageData.data));
+  const encoded = UPNG.encode([rgba], canvas.width, canvas.height, clamp(Math.round(colors), 2, 256));
+  return new Blob([encoded], { type: "image/png" });
 }
 
 export async function encodeGifFromCanvases(
@@ -312,7 +338,7 @@ export async function resultFromCanvas(
   inputName: string,
   suffix: string,
   canvas: HTMLCanvasElement,
-  format: "png" | "jpeg" | "webp" | "gif",
+  format: ImageExportFormat,
   quality: number,
   summary: string
 ): Promise<ToolResult> {
@@ -353,7 +379,7 @@ function fillBackground(context: CanvasRenderingContext2D, width: number, height
 }
 
 function get2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const context = canvas.getContext("2d", { alpha: false });
+  const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas rendering is not available in this browser.");
   return context;
 }

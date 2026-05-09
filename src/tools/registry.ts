@@ -395,12 +395,44 @@ export const tools: ToolDefinition[] = [
         label: "Output",
         type: "select",
         defaultValue: "auto",
-        choices: [{ label: "Keep format", value: "auto" }, ...outputFormatChoices]
+        choices: [{ label: "Auto", value: "auto" }, ...outputFormatChoices]
       },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.82, min: 0.2, max: 0.98, step: 0.01 },
-      { name: "targetSizeKb", label: "Target KB", type: "number", defaultValue: 0, min: 0, max: 20000, step: 10, help: "Optional. Works with JPG/WebP output; 0 disables." },
+      {
+        name: "preset",
+        label: "Preset",
+        type: "select",
+        defaultValue: "balanced",
+        choices: [
+          { label: "Balanced", value: "balanced" },
+          { label: "Small file", value: "small" },
+          { label: "High quality", value: "quality" },
+          { label: "Custom", value: "custom" }
+        ]
+      },
+      {
+        name: "quality",
+        label: "Quality",
+        type: "range",
+        defaultValue: 0.82,
+        min: 0.2,
+        max: 0.98,
+        step: 0.01,
+        showWhen: (options: ToolOptions) => options.preset === "custom" && options.format !== "png"
+      },
+      { name: "targetSizeKb", label: "Target KB", type: "number", defaultValue: 0, min: 0, max: 20000, step: 10, help: "Optional. Uses quality search first, then dimensions if enabled." },
+      { name: "reduceDimensions", label: "Reduce dimensions to hit target", type: "checkbox", defaultValue: true, showWhen: (options: ToolOptions) => Number(options.targetSizeKb) > 0 },
       { name: "maxWidth", label: "Max width", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original width." },
-      { name: "maxHeight", label: "Max height", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original height." }
+      { name: "maxHeight", label: "Max height", type: "number", defaultValue: 0, min: 0, max: 12000, step: 10, help: "Use 0 to keep original height." },
+      { name: "neverUpscale", label: "Never upscale", type: "checkbox", defaultValue: true },
+      {
+        name: "backgroundColor",
+        label: "JPG background",
+        type: "color",
+        defaultValue: "#ffffff",
+        help: "Used only when JPG output flattens transparent pixels.",
+        showWhen: (options: ToolOptions) => options.format === "jpeg"
+      },
+      { name: "skipLarger", label: "Skip larger output", type: "checkbox", defaultValue: true }
     ],
     processor: () => import("./imageProcessors").then((module) => module.compressImage)
   },

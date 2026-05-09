@@ -38,7 +38,7 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 | [Cropper.js](https://github.com/fengyuanchen/cropperjs) | Crop UX | MIT | 5 | Evaluate patterns | Use as a benchmark for aspect ratios, touch behavior, and crop affordances. |
 | [Filerobot Image Editor](https://github.com/scaleflex/filerobot-image-editor) | Photo editor UX | MIT | 4 | Evaluate patterns | Study undo/reset, comparison, filters, annotation UX; do not vendor full app yet. |
 | [Fabric.js](https://fabricjs.com/) | Canvas editor | MIT, verify before install | 4 | Evaluate if needed | Candidate for object-level annotations/text/shapes if DocuKind outgrows simple canvas helpers. |
-| [UPNG.js](https://github.com/photopea/UPNG.js) | PNG/APNG encode | MIT | 4 | Evaluate next | Potential better PNG compression and APNG support. |
+| [UPNG.js](https://github.com/photopea/UPNG.js) | PNG/APNG encode | MIT, verified direct dep | 4 | Adopted | Color-quantized PNG compression for Compress Image when Small file or Target KB is selected. |
 | [browser-image-compression](https://npm.io/package/browser-image-compression) | Compression workflow | MIT | 4 | Evaluate patterns | Target-size compression and worker-style non-blocking ideas. |
 | [image-blob-reduce](https://github.com/nodeca/image-blob-reduce) | Image orientation/reduce | MIT, verify before install | 4 | Evaluate next | EXIF-aware image reduction before canvas processing. |
 | [exifr](https://github.com/MikeKovarik/exifr) | EXIF read | MIT, verify before install | 4 | Evaluate next | Read orientation/metadata locally without retaining file contents. |
@@ -66,14 +66,13 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 ## Current Adoption Notes
 
 - DocuKind already uses the strongest PDF core choices: pdf-lib for modification and PDF.js for rendering.
-- Image quality now follows the focused-library approach: pica handles resizing, while DocuKind owns the workflow and UI.
+- Image quality now follows the focused-library approach: pica handles resizing, UPNG.js handles optional PNG color quantization, and DocuKind owns the workflow and UI.
 - Cropper.js is used as a UX benchmark, not copied. DocuKind now has its own aspect-ratio-aware region selector.
-- browser-image-compression is used as a workflow benchmark, not copied. DocuKind now supports target-size compression for JPG/WebP output.
+- browser-image-compression is used as a workflow benchmark, not copied. DocuKind now supports target-size compression for JPG/WebP output and transparent PNG/WebP-safe compression behavior.
 
 ## Next Upgrade Queue
 
-1. Evaluate UPNG.js for better PNG compression with generated fixtures and bundle-size measurement.
-2. Evaluate image-blob-reduce or exifr for EXIF orientation handling before image canvas decode.
-3. Prototype undo/reset and compare-view UX for Photo Editor using DocuKind's own canvas pipeline.
-4. Evaluate Fabric.js or Konva only if object-level annotations become a product requirement.
-5. Keep AGPL/GPL/server projects research-only unless the product strategy changes.
+1. Evaluate image-blob-reduce or exifr for EXIF orientation handling before image canvas decode.
+2. Prototype undo/reset and compare-view UX for Photo Editor using DocuKind's own canvas pipeline.
+3. Evaluate Fabric.js or Konva only if object-level annotations become a product requirement.
+4. Keep AGPL/GPL/server projects research-only unless the product strategy changes.

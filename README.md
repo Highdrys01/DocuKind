@@ -43,7 +43,7 @@ Compression is intentionally honest. The default mode rebuilds PDFs losslessly a
 
 ### Image Tools
 
-- **Compress Image**: shrink JPG, PNG, WebP, or browser-decoded GIF previews with quality, target-size, and max-dimension controls.
+- **Compress Image**: shrink JPG, PNG, WebP, or browser-decoded GIF still frames with presets, target-size search, max dimensions, transparency-safe PNG/WebP output, JPG background flattening, and larger-output skipping.
 - **Resize Image**: resize one or many images by exact pixels or percentage, using high-quality browser resampling.
 - **Crop Image**: crop by typing `x,y,width,height` values or dragging a crop region on the preview, with optional aspect-ratio presets.
 - **Rotate / Flip Image**: rotate and mirror images in batches.

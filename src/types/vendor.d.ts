@@ -20,3 +20,23 @@ declare module "gifenc" {
   export function quantize(data: Uint8Array | Uint8ClampedArray, maxColors: number, options?: Record<string, unknown>): GifPalette;
   export function applyPalette(data: Uint8Array | Uint8ClampedArray, palette: GifPalette, format?: string): Uint8Array;
 }
+
+declare module "upng-js" {
+  type DecodedPng = {
+    width: number;
+    height: number;
+    depth: number;
+    ctype: number;
+    data: ArrayBuffer;
+    tabs: Record<string, unknown>;
+    frames: Array<Record<string, unknown>>;
+  };
+
+  const UPNG: {
+    encode(imgs: ArrayBuffer[], width: number, height: number, colors: number, delays?: number[]): ArrayBuffer;
+    decode(buffer: ArrayBuffer): DecodedPng;
+    toRGBA8(image: DecodedPng): ArrayBuffer[];
+  };
+
+  export default UPNG;
+}

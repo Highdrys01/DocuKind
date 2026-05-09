@@ -13,6 +13,7 @@ DocuKind is built from original application code plus permissively licensed open
 | pdfjs-dist / PDF.js | Apache-2.0 | Local PDF parsing and rendering previews. | https://github.com/mozilla/pdf.js |
 | JSZip | MIT OR GPL-3.0-or-later | ZIP generation; DocuKind uses the MIT license option. | https://github.com/Stuk/jszip |
 | pica | MIT | High-quality browser image resizing. | https://github.com/nodeca/pica |
+| UPNG.js / upng-js | MIT | PNG color-quantized compression for the Compress Image tool. | https://github.com/photopea/UPNG.js |
 | gifenc | MIT | Browser GIF encoding. | https://github.com/mattdesl/gifenc |
 
 ## Development Dependencies
