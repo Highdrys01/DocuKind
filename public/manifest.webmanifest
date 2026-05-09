@@ -1,0 +1,17 @@
+{
+  "name": "DocuKind",
+  "short_name": "DocuKind",
+  "description": "A free, privacy-first browser PDF toolkit.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#f7f3ec",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocuKind</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        var marker = "/tool/";
+        var base = path.indexOf(marker) >= 0 ? path.slice(0, path.indexOf(marker)) + "/" : "/";
+        var route = path + window.location.search + window.location.hash;
+        window.location.replace(base + "?route=" + encodeURIComponent(route));
+      })();
+    </script>
+  </body>
+</html>

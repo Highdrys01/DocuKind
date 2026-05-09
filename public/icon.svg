@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="DocuKind">
+  <rect width="256" height="256" rx="48" fill="#f7f3ec"/>
+  <path d="M76 42h78l42 42v130H76z" fill="#fffdf8" stroke="#1f2a24" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M154 42v46h42" fill="#d9f274" stroke="#1f2a24" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M98 120h60M98 148h74M98 176h46" stroke="#1f2a24" stroke-width="12" stroke-linecap="round"/>
+  <path d="M67 63c-16 0-29 13-29 29 0 33 48 56 48 56s48-23 48-56c0-16-13-29-29-29-10 0-18 5-24 13-5-8-14-13-24-13z" fill="#f05d5e" stroke="#1f2a24" stroke-width="8" stroke-linejoin="round"/>
+</svg>
