@@ -280,14 +280,13 @@ a {
 .tool-columns {
   align-items: start;
   display: grid;
-  column-gap: 34px;
-  row-gap: 30px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  grid-template-columns: 1fr;
 }
 
 .tool-group {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   scroll-margin-top: 92px;
 }
 
@@ -306,34 +305,38 @@ a {
 
 .tool-group-list {
   display: grid;
-  gap: 4px;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
 }
 
-.tool-row-card {
-  align-items: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
+.tool-tile {
+  align-items: start;
+  background: color-mix(in srgb, var(--panel) 92%, var(--suite-soft));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(31, 42, 36, 0.03);
   cursor: pointer;
   display: grid;
-  gap: 12px;
-  grid-template-columns: auto minmax(0, 1fr);
-  min-height: 56px;
-  padding: 9px 7px;
+  gap: 14px;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 142px;
+  padding: 16px;
   scroll-margin-top: 92px;
   text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
   width: 100%;
 }
 
-.tool-row-card:hover,
-.tool-row-card:focus-visible {
-  background: rgba(255, 255, 255, 0.76);
-  border-color: color-mix(in srgb, var(--suite-accent) 24%, var(--line));
-  box-shadow: 0 8px 22px rgba(31, 42, 36, 0.06);
+.tool-tile:hover,
+.tool-tile:focus-visible {
+  background: var(--panel);
+  border-color: color-mix(in srgb, var(--suite-accent) 45%, var(--line));
+  box-shadow: 0 14px 32px rgba(31, 42, 36, 0.08);
   outline: 0;
+  transform: translateY(-2px);
 }
 
-.tool-row-card * {
+.tool-tile * {
   pointer-events: none;
 }
 
@@ -371,18 +374,18 @@ a {
 
 .tool-copy {
   display: grid;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
 }
 
 .tool-copy strong {
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1.2;
 }
 
 .tool-copy span {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   line-height: 1.28;
 }
 
@@ -407,6 +410,12 @@ a {
   border-radius: 7px;
   height: 34px;
   width: 34px;
+}
+
+.tool-icon.tile-icon {
+  border-radius: 8px;
+  height: 44px;
+  width: 44px;
 }
 
 .back-link {
@@ -1430,7 +1439,7 @@ a {
   }
 
   .tool-columns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .workspace-grid {
@@ -1493,8 +1502,15 @@ a {
     justify-content: flex-start;
   }
 
-  .tool-grid,
+  .tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .tool-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-group-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1548,6 +1564,7 @@ a {
 
 @media (max-width: 460px) {
   .tool-grid,
+  .tool-group-list,
   .tool-columns,
   .thumbnail-grid {
     grid-template-columns: 1fr;
@@ -1557,7 +1574,8 @@ a {
     justify-content: flex-start;
   }
 
-  .tool-card {
+  .tool-card,
+  .tool-tile {
     min-height: 116px;
   }
 }

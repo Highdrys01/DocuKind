@@ -129,8 +129,8 @@ function Dashboard({ suite }: { suite: ToolSuite }) {
             <h2>{group.title}</h2>
             <div className="tool-group-list">
               {group.tools.map((tool) => (
-                <button className="tool-row-card" type="button" key={tool.id} onClick={() => navigate(`/tool/${tool.id}`)}>
-                  <span className="tool-icon compact-icon">
+                <button className="tool-tile" type="button" key={tool.id} onClick={() => navigate(`/tool/${tool.id}`)}>
+                  <span className="tool-icon tile-icon">
                     <Icon name={tool.icon} size={18} />
                   </span>
                   <span className="tool-copy">
