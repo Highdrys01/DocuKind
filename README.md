@@ -27,7 +27,7 @@ For tools that need a real desktop conversion engine, DocuKind shows a dedicated
 
 ### PDF Tools
 
-- **Merge PDF**: combine multiple PDFs into one file in the order shown.
+- **Merge PDF**: combine multiple PDFs with first-page previews, page counts, drag reorder, clean output naming, and optional blank separator pages for double-sided printing.
 - **Split PDF**: create one PDF per page or split by custom ranges.
 - **Organize pages**: reorder pages with a custom sequence like `3,1,2`.
 - **Rotate PDF**: rotate all pages or selected pages.

@@ -50,7 +50,22 @@ export const tools: ToolDefinition[] = [
     accepts: "application/pdf,.pdf",
     multiple: true,
     minFiles: 2,
-    options: [],
+    options: [
+      {
+        name: "outputName",
+        label: "Output filename",
+        type: "text",
+        defaultValue: "docukind-merged",
+        placeholder: "client-documents"
+      },
+      {
+        name: "separatorBlankPages",
+        label: "Add blank page between PDFs",
+        type: "checkbox",
+        defaultValue: false,
+        help: "Useful when preparing merged files for double-sided printing."
+      }
+    ],
     processor: () => import("./processors").then((module) => module.mergePdf)
   },
   {

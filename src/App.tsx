@@ -5,6 +5,7 @@ import { navigate, normalizeRoute, pathForRoute } from "./utils/router";
 import { FileDropzone } from "./components/FileDropzone";
 import { Icon } from "./components/Icon";
 import { ImageRegionSelector } from "./components/ImageRegionSelector";
+import { MergePdfWorkspace } from "./components/MergePdfWorkspace";
 import { PdfPreview } from "./components/PdfPreview";
 import { ResultList } from "./components/ResultList";
 import { SignPdfWorkspace } from "./components/SignPdfWorkspace";
@@ -35,7 +36,13 @@ export default function App() {
   return (
     <div className={`app-shell ${suiteClassName(activeSuite)}`}>
       <Header activeSuite={activeSuite} />
-      <main>{tool ? (tool.id === "sign-pdf" ? <SignPdfWorkspace tool={tool} /> : <ToolWorkspace tool={tool} />) : <Dashboard suite={suite} />}</main>
+      <main>{tool ? (
+        tool.id === "merge-pdf"
+          ? <MergePdfWorkspace tool={tool} />
+          : tool.id === "sign-pdf"
+            ? <SignPdfWorkspace tool={tool} />
+            : <ToolWorkspace tool={tool} />
+      ) : <Dashboard suite={suite} />}</main>
     </div>
   );
 }

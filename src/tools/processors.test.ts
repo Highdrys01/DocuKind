@@ -24,6 +24,23 @@ describe("PDF processors", () => {
     await expectPageCount(result, 3);
   });
 
+  it("merges PDFs in selected order with optional separator pages and filename", async () => {
+    const wide = await makePdf("wide", 1, [360, 220]);
+    const tall = await makePdf("tall", 1, [220, 360]);
+    const [result] = await mergePdf([wide, tall], {
+      outputName: "Client final pack",
+      separatorBlankPages: true
+    });
+    const doc = await loadResult(result);
+
+    expect(result.filename).toBe("Client-final-pack.pdf");
+    expect(doc.getPageCount()).toBe(3);
+    expect(doc.getPage(0).getSize()).toMatchObject({ width: 360, height: 220 });
+    expect(doc.getPage(1).getSize()).toMatchObject({ width: 360, height: 220 });
+    expect(doc.getPage(2).getSize()).toMatchObject({ width: 220, height: 360 });
+    expect(result.summary).toContain("Inserted 1 blank separator page");
+  });
+
   it("splits PDFs into one file per page", async () => {
     const file = await makePdf("split", 3);
     const results = await splitPdf([file], { splitMode: "every", ranges: "" });
@@ -127,12 +144,12 @@ describe("PDF processors", () => {
   });
 });
 
-async function makePdf(name: string, pageCount: number): Promise<File> {
+async function makePdf(name: string, pageCount: number, size: [number, number] = [320, 220]): Promise<File> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
 
   for (let index = 0; index < pageCount; index += 1) {
-    const page = doc.addPage([320, 220]);
+    const page = doc.addPage(size);
     page.drawText(`${name} page ${index + 1}`, { x: 40, y: 120, size: 22, font });
   }
 

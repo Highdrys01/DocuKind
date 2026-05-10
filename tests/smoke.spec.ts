@@ -57,14 +57,14 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
   await page.getByRole("button", { name: /Merge PDF/ }).click();
   await expect(page.getByRole("heading", { name: "Merge PDF" })).toBeVisible();
 
-  const first = await makePdf("first");
-  const second = await makePdf("second");
+  const first = await makePdf("first", [360, 240]);
+  const second = await makePdf("second", [240, 360]);
   await page.getByTestId("file-input").setInputFiles([
     { name: "first.pdf", mimeType: "application/pdf", buffer: Buffer.from(first) },
     { name: "second.pdf", mimeType: "application/pdf", buffer: Buffer.from(second) }
   ]);
 
-  const canvas = page.locator("canvas.thumbnail-canvas").first();
+  const canvas = page.locator("canvas.merge-thumbnail-canvas").first();
   await expect(canvas).toBeVisible();
   await expect.poll(async () => {
     return canvas.evaluate((element) => {
@@ -79,8 +79,17 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
     });
   }).toBe(true);
 
-  await page.getByRole("button", { name: /Run Merge PDF/ }).click();
-  await expect(page.getByText("docukind-merged.pdf")).toBeVisible();
+  await page.getByRole("button", { name: /Move second.pdf up/ }).click();
+  await page.getByLabel("Filename").fill("merged smoke");
+  await page.getByLabel("Add blank page between PDFs").check();
+  await page.getByRole("button", { name: /^Merge PDFs$/ }).click();
+  await expect(page.getByText("merged-smoke.pdf")).toBeVisible();
+
+  const mergedPdf = await PDFDocument.load(await readFile(await downloadFirst(page)));
+  expect(mergedPdf.getPageCount()).toBe(3);
+  expect(mergedPdf.getPage(0).getSize()).toMatchObject({ width: 240, height: 360 });
+  expect(mergedPdf.getPage(1).getSize()).toMatchObject({ width: 240, height: 360 });
+  expect(mergedPdf.getPage(2).getSize()).toMatchObject({ width: 360, height: 240 });
 });
 
 test("places and exports a visual PDF signature", async ({ page, isMobile }) => {
@@ -276,11 +285,11 @@ test("converts, watermarks, memes, and redacts images", async ({ page }) => {
   expect(pixel.b).toBeLessThan(40);
 });
 
-async function makePdf(label: string): Promise<Uint8Array> {
+async function makePdf(label: string, size: [number, number] = [360, 240]): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.HelveticaBold);
-  const page = doc.addPage([360, 240]);
-  page.drawText(label, { x: 64, y: 132, size: 42, font });
+  const page = doc.addPage(size);
+  page.drawText(label, { x: Math.min(64, size[0] * 0.18), y: size[1] * 0.55, size: 42, font });
   return doc.save();
 }
 

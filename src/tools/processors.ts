@@ -8,7 +8,7 @@ import {
   type PDFPage
 } from "pdf-lib";
 import type { ToolOptions, ToolProcessor, ToolResult, ToolRunContext } from "../types";
-import { fileToUint8Array, formatBytes, makeOutputName, resultFromBlob, resultFromBytes } from "../utils/file";
+import { fileToUint8Array, formatBytes, makeOutputName, normalizeFilename, resultFromBlob, resultFromBytes } from "../utils/file";
 import { allPageIndexes, formatPageLabel, parsePageSelection, parseRangeGroups } from "../utils/pageRanges";
 import { booleanOption, copySelectedPages, hexToRgb, loadPdf, numberOption, pageIndexesFor, stringOption } from "../utils/pdf";
 import { dataUrlToBytes, parseSignaturePlacements, validateSignaturePlacements, type SignaturePlacement } from "../utils/signatures";
@@ -19,25 +19,45 @@ const PAGE_SIZES: Record<string, [number, number]> = {
   square: [720, 720]
 };
 
-export const mergePdf: ToolProcessor = async (files, _options, context) => {
+export const mergePdf: ToolProcessor = async (files, options, context) => {
   if (files.length < 2) throw new Error("Add at least two PDFs to merge.");
 
   const output = await PDFDocument.create();
   let totalPages = 0;
-  for (const file of files) {
-    setProgress(context, `Reading ${file.name}`);
+  let separatorPages = 0;
+  const fileSummaries: string[] = [];
+  const addSeparators = booleanOption(options.separatorBlankPages);
+  const requestedOutputName = stringOption(options.outputName, "docukind-merged").trim() || "docukind-merged";
+  const outputName = `${normalizeFilename(requestedOutputName)}.pdf`;
+
+  for (const [fileIndex, file] of files.entries()) {
+    setProgress(context, `Reading ${file.name} (${fileIndex + 1} of ${files.length})`);
     const source = await loadPdf(file);
-    totalPages += source.getPageCount();
+    const sourcePageCount = source.getPageCount();
+    if (sourcePageCount < 1) throw new Error(`"${file.name}" does not contain any pages.`);
+    totalPages += sourcePageCount;
+    fileSummaries.push(`${file.name}: ${sourcePageCount} page${sourcePageCount === 1 ? "" : "s"}`);
     const pages = await output.copyPages(source, pageIndexesFor(source));
     for (const page of pages) output.addPage(page);
+
+    if (addSeparators && fileIndex < files.length - 1) {
+      const lastPage = pages.at(-1);
+      const size = lastPage?.getSize() ?? { width: 612, height: 792 };
+      output.addPage([size.width, size.height]);
+      separatorPages += 1;
+      totalPages += 1;
+    }
   }
 
   setProgress(context, "Saving merged PDF");
+  const separatorSummary = separatorPages > 0
+    ? ` Inserted ${separatorPages} blank separator page${separatorPages === 1 ? "" : "s"}.`
+    : "";
   return [
     resultFromBytes(
-      "docukind-merged.pdf",
+      outputName,
       await output.save({ useObjectStreams: true }),
-      `Merged ${files.length} PDFs into ${totalPages} pages.`
+      `Merged ${files.length} PDFs into ${totalPages} pages.${separatorSummary} ${fileSummaries.join(" | ")}.`
     )
   ];
 };
