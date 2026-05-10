@@ -1,20 +1,21 @@
 :root {
   color-scheme: light;
-  --paper: #f4f6f0;
-  --panel: #fffdf8;
+  --paper: #f6f7f3;
+  --panel: #ffffff;
   --panel-strong: #ffffff;
   --ink: #1f2a24;
   --muted: #647067;
-  --line: #d8ddcf;
-  --line-strong: #b8c0af;
+  --line: #dde3d8;
+  --line-strong: #c1cabd;
   --teal: #126c68;
   --teal-dark: #0d4f4d;
   --coral: #f05d5e;
-  --lime: #d9f274;
+  --lime: #dceea0;
   --blue: #2e5aac;
   --suite-accent: var(--teal);
   --suite-accent-dark: var(--teal-dark);
-  --suite-icon-bg: var(--lime);
+  --suite-icon-bg: rgba(18, 108, 104, 0.11);
+  --suite-icon-border: rgba(18, 108, 104, 0.2);
   --suite-soft: rgba(18, 108, 104, 0.1);
   --suite-soft-strong: rgba(18, 108, 104, 0.18);
   --shadow: 0 16px 40px rgba(31, 42, 36, 0.08);
@@ -38,7 +39,7 @@ body,
 body {
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(217, 242, 116, 0.18), rgba(244, 246, 240, 0) 260px),
+    linear-gradient(180deg, rgba(18, 108, 104, 0.06), rgba(246, 247, 243, 0) 280px),
     var(--paper);
   color: var(--ink);
 }
@@ -65,19 +66,21 @@ a {
 .app-shell.suite-pdf {
   --suite-accent: var(--teal);
   --suite-accent-dark: var(--teal-dark);
-  --suite-icon-bg: var(--lime);
+  --suite-icon-bg: rgba(18, 108, 104, 0.11);
+  --suite-icon-border: rgba(18, 108, 104, 0.22);
   --suite-soft: rgba(18, 108, 104, 0.1);
   --suite-soft-strong: rgba(18, 108, 104, 0.18);
 }
 
 .app-shell.suite-image {
-  --suite-accent: #9a3f73;
-  --suite-accent-dark: #6f2b53;
-  --suite-icon-bg: #ffd166;
-  --suite-soft: rgba(154, 63, 115, 0.1);
-  --suite-soft-strong: rgba(154, 63, 115, 0.2);
+  --suite-accent: #b45309;
+  --suite-accent-dark: #78350f;
+  --suite-icon-bg: rgba(180, 83, 9, 0.12);
+  --suite-icon-border: rgba(180, 83, 9, 0.24);
+  --suite-soft: rgba(180, 83, 9, 0.1);
+  --suite-soft-strong: rgba(180, 83, 9, 0.18);
   background:
-    linear-gradient(180deg, rgba(255, 209, 102, 0.18), rgba(244, 246, 240, 0) 260px),
+    linear-gradient(180deg, rgba(180, 83, 9, 0.07), rgba(246, 247, 243, 0) 280px),
     var(--paper);
 }
 
@@ -277,52 +280,46 @@ a {
 .tool-columns {
   align-items: start;
   display: grid;
-  gap: 18px;
+  column-gap: 34px;
+  row-gap: 30px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tool-group {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   scroll-margin-top: 92px;
 }
 
 .tool-group h2 {
   align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 0.86rem;
-  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  display: block;
+  font-size: 0.78rem;
   letter-spacing: 0;
   margin: 0;
+  padding: 0 0 9px;
   pointer-events: none;
   text-transform: uppercase;
 }
 
-.tool-group h2::before {
-  background: var(--suite-accent);
-  border-radius: 3px;
-  content: "";
-  height: 12px;
-  width: 12px;
-}
-
 .tool-group-list {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .tool-row-card {
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 7px;
   cursor: pointer;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: auto minmax(0, 1fr);
-  min-height: 58px;
-  padding: 8px;
+  min-height: 56px;
+  padding: 9px 7px;
   scroll-margin-top: 92px;
   text-align: left;
   width: 100%;
@@ -330,8 +327,9 @@ a {
 
 .tool-row-card:hover,
 .tool-row-card:focus-visible {
-  background: var(--panel);
-  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.76);
+  border-color: color-mix(in srgb, var(--suite-accent) 24%, var(--line));
+  box-shadow: 0 8px 22px rgba(31, 42, 36, 0.06);
   outline: 0;
 }
 
@@ -373,23 +371,27 @@ a {
 
 .tool-copy {
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .tool-copy strong {
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.2;
 }
 
 .tool-copy span {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+  line-height: 1.28;
 }
 
 .tool-icon {
   align-items: center;
   background: var(--suite-icon-bg);
-  border: 1px solid var(--ink);
-  border-radius: 8px;
+  border: 1px solid var(--suite-icon-border);
+  border-radius: 7px;
+  color: var(--suite-accent-dark);
   display: inline-flex;
   height: 42px;
   justify-content: center;
@@ -402,9 +404,9 @@ a {
 }
 
 .tool-icon.compact-icon {
-  border-radius: 6px;
-  height: 32px;
-  width: 32px;
+  border-radius: 7px;
+  height: 34px;
+  width: 34px;
 }
 
 .back-link {

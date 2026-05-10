@@ -456,11 +456,11 @@ export const tools: ToolDefinition[] = [
   },
   {
     id: "compress",
-    title: "Basic Compress",
+    title: "Compress PDF",
     suite: "pdf",
     kind: "pdf",
     category: "Optimize",
-    tagline: "Rebuild PDFs or rasterize scans.",
+    tagline: "Rebuild PDFs or rasterize scans honestly.",
     icon: "Archive",
     accepts: "application/pdf,.pdf",
     multiple: false,

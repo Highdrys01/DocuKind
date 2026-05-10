@@ -44,7 +44,7 @@ For tools that need a real desktop conversion engine, DocuKind shows a dedicated
 - **Sign PDF**: use a visual signing workspace with page preview, thumbnails, typed/drawn/uploaded signature appearances, initials, name, date, custom text, color choices, drag placement, resizing, nudging, duplicate, delete, and copy-to-page controls.
 - **Certified Digital Signature (Local)**: download a local pyHanko-based pack for cryptographic certificate signing with your own `.p12` or `.pfx` certificate.
 - **Metadata**: clear or set title, author, subject, and keywords.
-- **Basic compress**: rebuild PDFs losslessly or rasterize scanned PDFs.
+- **Compress PDF**: rebuild PDFs losslessly or rasterize scanned PDFs.
 
 Compression is intentionally honest. The default mode rebuilds PDFs losslessly and can remove metadata. Raster scan mode can shrink scanned documents by turning pages into JPEG-backed PDF pages, but it does not preserve selectable text or form fields.
 
