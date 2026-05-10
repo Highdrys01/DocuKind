@@ -30,6 +30,13 @@ export type PreviewPoint = {
   height: number;
 };
 
+export type PreviewPixelRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export const DEFAULT_SIGNATURE_COLORS = ["#1f2a24", "#e23a3a", "#126c68", "#2e5aac"];
 
 export function placementToPreviewRect(placement: SignaturePlacement, page: PageSize): PreviewPoint {
@@ -48,6 +55,33 @@ export function pointerToPdfPoint(clientX: number, clientY: number, rect: DOMRec
     x: clampNumber(x, 0, page.width),
     y: clampNumber(y, 0, page.height)
   };
+}
+
+export function placementToPreviewPixels(placement: SignaturePlacement, page: PageSize, preview: PageSize): PreviewPixelRect {
+  return {
+    x: (placement.x / page.width) * preview.width,
+    y: ((page.height - placement.y - placement.height) / page.height) * preview.height,
+    width: (placement.width / page.width) * preview.width,
+    height: (placement.height / page.height) * preview.height
+  };
+}
+
+export function previewRectToPlacement(
+  placement: SignaturePlacement,
+  rect: PreviewPixelRect,
+  page: PageSize,
+  preview: PageSize
+): SignaturePlacement {
+  if (preview.width <= 0 || preview.height <= 0) return placement;
+  const width = (rect.width / preview.width) * page.width;
+  const height = (rect.height / preview.height) * page.height;
+  return clampPlacement({
+    ...placement,
+    x: (rect.x / preview.width) * page.width,
+    y: page.height - ((rect.y + rect.height) / preview.height) * page.height,
+    width,
+    height
+  }, page);
 }
 
 export function previewDeltaToPdfDelta(deltaX: number, deltaY: number, rect: DOMRect, page: PageSize): { dx: number; dy: number } {
@@ -90,6 +124,23 @@ export function validateSignaturePlacements(placements: SignaturePlacement[], pa
 
     if (normalized.width <= 0 || normalized.height <= 0) {
       throw new Error(`Signature field "${placement.kind}" has an invalid size.`);
+    }
+
+    if (!Number.isFinite(normalized.x) || !Number.isFinite(normalized.y) || !Number.isFinite(normalized.width) || !Number.isFinite(normalized.height)) {
+      throw new Error(`Signature field "${placement.kind}" has invalid coordinates.`);
+    }
+
+    if (
+      normalized.x < 0 ||
+      normalized.y < 0 ||
+      normalized.x + normalized.width > page.width ||
+      normalized.y + normalized.height > page.height
+    ) {
+      throw new Error(`Signature field "${placement.kind}" is outside the page bounds.`);
+    }
+
+    if (normalized.imageData) {
+      dataUrlToBytes(normalized.imageData);
     }
 
     return clampPlacement(normalized, page);
@@ -141,8 +192,16 @@ export function defaultSizeForKind(kind: SignatureFieldKind): { width: number; h
 export function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mimeType: string } {
   const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
   if (!match) throw new Error("Signature image data is not a valid data URL.");
+  if (match[1] !== "image/png" && match[1] !== "image/jpeg" && match[1] !== "image/jpg") {
+    throw new Error("Signature images must be PNG or JPG.");
+  }
 
-  const binary = globalThis.atob(match[2]);
+  let binary: string;
+  try {
+    binary = globalThis.atob(match[2]);
+  } catch {
+    throw new Error("Signature image data is not valid base64.");
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);

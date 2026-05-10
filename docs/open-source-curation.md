@@ -40,6 +40,8 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 | [Filerobot Image Editor](https://github.com/scaleflex/filerobot-image-editor) | Photo editor UX | MIT | 4 | Evaluate patterns | Study undo/reset, comparison, filters, annotation UX; do not vendor full app yet. |
 | [Fabric.js](https://fabricjs.com/) | Canvas editor | MIT, verify before install | 4 | Evaluate if needed | Candidate for object-level annotations/text/shapes if DocuKind outgrows simple canvas helpers. |
 | [UPNG.js](https://github.com/photopea/UPNG.js) | PNG/APNG encode | MIT, verified direct dep | 4 | Adopted | Color-quantized PNG compression for Compress Image when Small file or Target KB is selected. |
+| [dnd-kit](https://github.com/clauderic/dnd-kit) | Drag/drop UX | MIT, verified direct dep | 4 | Adopted | Palette-to-page drag/drop for the Sign PDF workspace. |
+| [react-rnd](https://github.com/bokuweb/react-rnd) | Drag/resize UX | MIT, verified direct dep | 4 | Adopted | Move and resize placed Sign PDF fields while keeping page-bound constraints. |
 | [browser-image-compression](https://npm.io/package/browser-image-compression) | Compression workflow | MIT | 4 | Evaluate patterns | Target-size compression and worker-style non-blocking ideas. |
 | [image-blob-reduce](https://github.com/nodeca/image-blob-reduce) | Image orientation/reduce | MIT, verify before install | 4 | Evaluate next | EXIF-aware image reduction before canvas processing. |
 | [exifr](https://github.com/MikeKovarik/exifr) | EXIF read | MIT, verify before install | 4 | Evaluate next | Read orientation/metadata locally without retaining file contents. |
@@ -74,7 +76,7 @@ Adopted candidates should average 4 or better, with no score below 3 in license 
 - Cropper.js is used as a UX benchmark, not copied. DocuKind now has its own aspect-ratio-aware region selector.
 - browser-image-compression is used as a workflow benchmark, not copied. DocuKind now supports target-size compression for JPG/WebP output and transparent PNG/WebP-safe compression behavior.
 - Backend-grade conversion is now treated as local tooling instead of fake browser tooling. PDF to Word, Word to PDF, PowerPoint to PDF, and Excel to PDF generate tool-specific ZIP packs with local scripts and honest requirements.
-- Visual Sign PDF stays browser-only and embeds appearances with pdf-lib. Certified cryptographic signing is deliberately separate as a pyHanko local pack, because a static site cannot issue certificates, verify identity, or promise qualified/eIDAS legal status by itself.
+- Visual Sign PDF stays browser-only and embeds appearances with pdf-lib. The workspace uses dnd-kit for palette drag/drop and react-rnd for placed field movement/resizing, while certified cryptographic signing remains deliberately separate as a future DocuKind Local flow because a static site cannot issue certificates, verify identity, or promise qualified/eIDAS legal status by itself.
 
 ## Next Upgrade Queue
 

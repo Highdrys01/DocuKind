@@ -9,6 +9,7 @@ import { PdfPreview } from "./components/PdfPreview";
 import { ResultList } from "./components/ResultList";
 import { SignPdfWorkspace } from "./components/SignPdfWorkspace";
 import { ToolOptionsForm } from "./components/ToolOptionsForm";
+import { suiteClassName, suiteToolLabel } from "./utils/suites";
 
 export default function App() {
   const [route, setRoute] = useState(normalizeRoute());
@@ -29,10 +30,11 @@ export default function App() {
   const toolId = route.match(/^\/tool\/([^/]+)/)?.[1];
   const tool = toolId ? getTool(toolId) : undefined;
   const suite = route.startsWith("/image") ? "image" : "pdf";
+  const activeSuite = tool?.suite ?? suite;
 
   return (
-    <div className="app-shell">
-      <Header activeSuite={tool?.suite ?? suite} />
+    <div className={`app-shell ${suiteClassName(activeSuite)}`}>
+      <Header activeSuite={activeSuite} />
       <main>{tool ? (tool.id === "sign-pdf" ? <SignPdfWorkspace tool={tool} /> : <ToolWorkspace tool={tool} />) : <Dashboard suite={suite} />}</main>
     </div>
   );
@@ -68,6 +70,7 @@ function Header({ activeSuite }: { activeSuite: ToolSuite }) {
 function Dashboard({ suite }: { suite: ToolSuite }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("All");
+  const suiteLabel = suiteToolLabel(suite);
   const filteredTools = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return tools.filter((tool) => {
@@ -89,7 +92,7 @@ function Dashboard({ suite }: { suite: ToolSuite }) {
     <div className="dashboard">
       <section className="workspace-title">
         <div>
-          <p className="eyebrow">Free {suite === "pdf" ? "PDF" : "image"} toolkit</p>
+          <p className="eyebrow">Free {suiteLabel.toLowerCase()} toolkit</p>
           <h1>{suite === "pdf" ? "PDF tools, kept on your device." : "Image tools, kept on your device."}</h1>
         </div>
         <div className="metric-strip" aria-label="Privacy facts">
@@ -102,7 +105,7 @@ function Dashboard({ suite }: { suite: ToolSuite }) {
       <section className="toolbar" aria-label="Tool filters">
         <label className="search-box">
           <Icon name="Search" size={18} />
-          <input value={query} placeholder={`Search ${suite === "pdf" ? "PDF" : "image"} tools`} onChange={(event) => setQuery(event.currentTarget.value)} />
+          <input value={query} placeholder={`Search ${suiteLabel.toLowerCase()} tools`} onChange={(event) => setQuery(event.currentTarget.value)} />
         </label>
         <div className="segmented">
           {["All", ...filteredCategories].map((item) => (
@@ -113,7 +116,7 @@ function Dashboard({ suite }: { suite: ToolSuite }) {
         </div>
       </section>
 
-      <section className="tool-columns" aria-label={`${suite === "pdf" ? "PDF" : "Image"} tools`}>
+      <section className="tool-columns" aria-label={`${suiteLabel} tools`}>
         {groups.map((group) => (
           <div className="tool-group" key={group.title}>
             <h2>{group.title}</h2>

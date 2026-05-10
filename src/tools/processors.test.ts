@@ -115,6 +115,16 @@ describe("PDF processors", () => {
     await expectPageCount(result, 2);
     expect(result.summary).toContain("3 visual signing fields");
   });
+
+  it("rejects invalid visual signature placements", async () => {
+    const file = await makePdf("invalid-sign", 1);
+    await expect(signPdf([file], {
+      placements: [{ id: "blank", pageIndex: 0, kind: "text", x: 20, y: 20, width: 80, height: 24, value: "" }]
+    })).rejects.toThrow(/blank/);
+    await expect(signPdf([file], {
+      placements: [{ id: "outside", pageIndex: 0, kind: "name", x: 300, y: 20, width: 80, height: 24, value: "Ada" }]
+    })).rejects.toThrow(/outside/);
+  });
 });
 
 async function makePdf(name: string, pageCount: number): Promise<File> {

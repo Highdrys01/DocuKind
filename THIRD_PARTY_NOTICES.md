@@ -8,6 +8,8 @@ DocuKind is built from original application code plus permissively licensed open
 | --- | --- | --- | --- |
 | React | MIT | User interface runtime. | https://react.dev/ |
 | React DOM | MIT | Browser rendering for React. | https://react.dev/ |
+| @dnd-kit/core / @dnd-kit/utilities | MIT | Palette drag-and-drop interactions in the Sign PDF workspace. | https://github.com/clauderic/dnd-kit |
+| react-rnd | MIT | Draggable and resizable placed signing fields in the Sign PDF workspace. | https://github.com/bokuweb/react-rnd |
 | lucide-react | ISC | Interface icons. | https://lucide.dev/ |
 | pdf-lib | MIT | Local PDF creation and modification. | https://pdf-lib.js.org/ |
 | pdfjs-dist / PDF.js | Apache-2.0 | Local PDF parsing and rendering previews. | https://github.com/mozilla/pdf.js |

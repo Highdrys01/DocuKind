@@ -8,10 +8,13 @@ test("renders the dashboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /PDF tools/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Merge PDF/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Resize Image/ })).toHaveCount(0);
+  const pdfAccent = await page.locator(".suite-link.active").evaluate((element) => getComputedStyle(element).backgroundColor);
   await page.getByRole("button", { name: /Image Tools/ }).click();
   await expect(page.getByRole("heading", { name: /Image tools/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Resize Image/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Merge PDF/ })).toHaveCount(0);
+  const imageAccent = await page.locator(".suite-link.active").evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(imageAccent).not.toBe(pdfAccent);
 });
 
 test("prepares local converter packs without upload inputs", async ({ page }) => {
@@ -80,7 +83,7 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
   await expect(page.getByText("docukind-merged.pdf")).toBeVisible();
 });
 
-test("places and exports a visual PDF signature", async ({ page }) => {
+test("places and exports a visual PDF signature", async ({ page, isMobile }) => {
   await page.goto("/");
   await clickTool(page, /Sign PDF/);
   await expect(page.getByRole("heading", { name: "Sign PDF" })).toBeVisible();
@@ -92,8 +95,22 @@ test("places and exports a visual PDF signature", async ({ page }) => {
   await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
 
   await page.getByLabel("Full name").fill("Ada Lovelace");
-  await placeFieldOnPreview(page, 0.32, 0.72);
-  await expect(page.locator(".signature-field-box")).toBeVisible();
+  await page.getByLabel("Initials").fill("AL");
+  await page.getByLabel("Custom text").fill("Approved locally");
+  if (isMobile) {
+    await chooseAndPlaceField(page, "signature", 0.32, 0.72);
+    await chooseAndPlaceField(page, "name", 0.58, 0.72);
+    await chooseAndPlaceField(page, "date", 0.58, 0.84);
+    await chooseAndPlaceField(page, "text", 0.36, 0.84);
+  } else {
+    await dragPaletteFieldToPreview(page, "signature", 0.32, 0.72);
+    await dragPaletteFieldToPreview(page, "name", 0.58, 0.72);
+    await dragPaletteFieldToPreview(page, "date", 0.58, 0.84);
+    await dragPaletteFieldToPreview(page, "text", 0.36, 0.84);
+  }
+  await page.getByTestId("palette-initials").click();
+  await placeFieldOnPreview(page, 0.72, 0.72);
+  await expect(page.locator(".signature-field-box")).toHaveCount(5);
 
   const field = page.locator(".signature-field-box").first();
   const fieldBox = await field.boundingBox();
@@ -101,6 +118,12 @@ test("places and exports a visual PDF signature", async ({ page }) => {
   await page.mouse.move(fieldBox.x + fieldBox.width / 2, fieldBox.y + fieldBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(fieldBox.x + fieldBox.width / 2 + 42, fieldBox.y + fieldBox.height / 2 - 18);
+  await page.mouse.up();
+  const movedBox = await field.boundingBox();
+  if (!movedBox) throw new Error("Moved signature field did not have a bounding box.");
+  await page.mouse.move(movedBox.x + movedBox.width - 2, movedBox.y + movedBox.height - 2);
+  await page.mouse.down();
+  await page.mouse.move(movedBox.x + movedBox.width + 24, movedBox.y + movedBox.height + 12);
   await page.mouse.up();
 
   await page.getByRole("button", { name: /^Sign PDF$/ }).click();
@@ -322,6 +345,28 @@ async function placeFieldOnPreview(page: import("@playwright/test").Page, xRatio
       pointerType: "mouse"
     }));
   }, { xRatio, yRatio });
+}
+
+async function dragPaletteFieldToPreview(page: import("@playwright/test").Page, kind: string, xRatio: number, yRatio: number): Promise<void> {
+  const palette = page.getByTestId(`palette-${kind}`);
+  const target = page.locator(".signature-overlay");
+  const paletteBox = await palette.boundingBox();
+  const targetBox = await target.boundingBox();
+  if (!paletteBox || !targetBox) throw new Error(`Could not drag ${kind}; missing palette or preview box.`);
+  const startX = paletteBox.x + paletteBox.width / 2;
+  const startY = paletteBox.y + paletteBox.height / 2;
+  const endX = targetBox.x + targetBox.width * xRatio;
+  const endY = targetBox.y + targetBox.height * yRatio;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 8, startY + 8);
+  await page.mouse.move(endX, endY, { steps: 14 });
+  await page.mouse.up();
+}
+
+async function chooseAndPlaceField(page: import("@playwright/test").Page, kind: string, xRatio: number, yRatio: number): Promise<void> {
+  await page.getByTestId(`palette-${kind}`).click();
+  await placeFieldOnPreview(page, xRatio, yRatio);
 }
 
 function isCanvasNonBlank(element: HTMLCanvasElement): boolean {

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   clampPlacement,
   dataUrlToBytes,
+  placementToPreviewPixels,
   parseSignaturePlacements,
   placementToPreviewRect,
+  previewRectToPlacement,
   previewDeltaToPdfDelta,
   validateSignaturePlacements,
   type SignaturePlacement
@@ -23,6 +25,19 @@ describe("signature helpers", () => {
     expect(delta.dy).toBe(-50);
   });
 
+  it("round-trips placement through preview pixel coordinates", () => {
+    const placement = makePlacement({ x: 60, y: 80, width: 120, height: 40 });
+    const preview = { width: 300, height: 400 };
+    const pixels = placementToPreviewPixels(placement, page, preview);
+    expect(pixels).toEqual({ x: 30, y: 340, width: 60, height: 20 });
+    expect(previewRectToPlacement(placement, pixels, page, preview)).toMatchObject({
+      x: 60,
+      y: 80,
+      width: 120,
+      height: 40
+    });
+  });
+
   it("clamps placement inside page bounds", () => {
     const clamped = clampPlacement(makePlacement({ x: 580, y: -10, width: 80, height: 20 }), page);
     expect(clamped.x).toBe(520);
@@ -33,6 +48,8 @@ describe("signature helpers", () => {
     expect(() => validateSignaturePlacements([], [page])).toThrow(/at least one/);
     expect(() => validateSignaturePlacements([makePlacement({ value: "", imageData: undefined })], [page])).toThrow(/blank/);
     expect(() => validateSignaturePlacements([makePlacement({ pageIndex: 2 })], [page])).toThrow(/does not exist/);
+    expect(() => validateSignaturePlacements([makePlacement({ x: 560, width: 80 })], [page])).toThrow(/outside/);
+    expect(() => validateSignaturePlacements([makePlacement({ imageData: "data:image/gif;base64,SGk=" })], [page])).toThrow(/PNG or JPG/);
   });
 
   it("parses structured placements from tool options", () => {
