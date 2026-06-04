@@ -39,6 +39,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Smoke test built app
+        run: npx playwright install --with-deps chromium && npx playwright test --project=desktop
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

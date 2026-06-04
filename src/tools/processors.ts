@@ -99,16 +99,27 @@ export const organizePdf: ToolProcessor = async ([file], options, context) => {
   const totalPages = source.getPageCount();
   const reverse = booleanOption(options.reverseOrder);
   const rawOrder = stringOption(options.pageOrder);
+  const rotations = parsePageRotations(options.pageRotations, totalPages);
   const order = reverse
     ? allPageIndexes(totalPages).reverse()
     : parsePageSelection(rawOrder || "all", totalPages);
-  const output = await copySelectedPages(source, order);
+  const output = await PDFDocument.create();
+  const copiedPages = await output.copyPages(source, order);
+
+  for (const [index, page] of copiedPages.entries()) {
+    const sourcePageIndex = order[index];
+    const rotation = rotations[sourcePageIndex] ?? 0;
+    if (rotation !== 0) {
+      page.setRotation(degrees(normalizeAngle(page.getRotation().angle + rotation)));
+    }
+    output.addPage(page);
+  }
 
   return [
     resultFromBytes(
       makeOutputName(file.name, "organized"),
       await output.save({ useObjectStreams: true }),
-      `Created a ${order.length}-page PDF in the selected order.`
+      `Created a ${order.length}-page PDF in the selected order${Object.keys(rotations).length ? " with page rotations" : ""}.`
     )
   ];
 };
@@ -660,6 +671,30 @@ function clamp(value: number, min: number, max: number): number {
 
 function splitKeywords(value: string): string[] {
   return value.split(",").map((keyword) => keyword.trim()).filter(Boolean);
+}
+
+function parsePageRotations(value: unknown, totalPages: number): Record<number, number> {
+  if (typeof value !== "string" || !value.trim()) return {};
+
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const rotations: Record<number, number> = {};
+    for (const [key, rawRotation] of Object.entries(parsed)) {
+      const pageIndex = Number(key);
+      const rotation = Number(rawRotation);
+      if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= totalPages) {
+        throw new Error(`Page rotation index ${key} is outside this PDF.`);
+      }
+      if (!Number.isFinite(rotation)) {
+        throw new Error(`Page rotation for page ${pageIndex + 1} is not valid.`);
+      }
+      rotations[pageIndex] = normalizeAngle(rotation);
+    }
+    return rotations;
+  } catch (caught) {
+    if (caught instanceof Error && caught.message.startsWith("Page rotation")) throw caught;
+    throw new Error("Page rotation data is not valid.");
+  }
 }
 
 function compressionSummary(inputBytes: number, outputBytes: number, label: string): string {

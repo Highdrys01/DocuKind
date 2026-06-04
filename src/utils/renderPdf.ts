@@ -12,34 +12,38 @@ export type RenderedPage = {
 
 export async function getRenderedPageCount(file: File): Promise<number> {
   const pdf = await pdfjsLib.getDocument({ data: await fileToUint8Array(file) }).promise;
-  const count = pdf.numPages;
-  await pdf.destroy();
-  return count;
+  try {
+    return pdf.numPages;
+  } finally {
+    await pdf.destroy();
+  }
 }
 
 export async function renderPdfPage(file: File, pageNumber: number, scale = 0.45): Promise<RenderedPage> {
   const pdf = await pdfjsLib.getDocument({ data: await fileToUint8Array(file) }).promise;
-  const page = await pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale });
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d", { alpha: false });
+  try {
+    const page = await pdf.getPage(pageNumber);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { alpha: false });
 
-  if (!context) {
+    if (!context) {
+      throw new Error("Canvas rendering is not available in this browser.");
+    }
+
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+
+    await page.render({ canvasContext: context, viewport } as never).promise;
+
+    return {
+      canvas,
+      width: canvas.width,
+      height: canvas.height
+    };
+  } finally {
     await pdf.destroy();
-    throw new Error("Canvas rendering is not available in this browser.");
   }
-
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-
-  await page.render({ canvasContext: context, viewport } as never).promise;
-  await pdf.destroy();
-
-  return {
-    canvas,
-    width: canvas.width,
-    height: canvas.height
-  };
 }
 
 export async function renderPdfPageToBlob(

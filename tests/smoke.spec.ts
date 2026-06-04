@@ -92,6 +92,65 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
   expect(mergedPdf.getPage(2).getSize()).toMatchObject({ width: 360, height: 240 });
 });
 
+test("uses visual page workspace for extract, delete, organize, and rotate", async ({ page }) => {
+  await page.goto("/");
+  const source = await makeMultiPagePdf([
+    ["one", [300, 220]],
+    ["two", [340, 260]],
+    ["three", [380, 300]]
+  ]);
+
+  await clickTool(page, /Extract Pages/);
+  await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
+  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await expect.poll(async () => page.locator("canvas.page-thumbnail-canvas").first().evaluate(isCanvasNonBlank)).toBe(true);
+  await page.getByRole("button", { name: /Page 2/ }).click();
+  await page.getByRole("button", { name: /Extract Selected Pages/ }).click();
+  await expect(page.getByText("pages-pages-2.pdf")).toBeVisible();
+  const extracted = await PDFDocument.load(await readFile(await downloadFirst(page)));
+  expect(extracted.getPageCount()).toBe(1);
+  expect(extracted.getPage(0).getSize()).toMatchObject({ width: 340, height: 260 });
+
+  await page.goto("/");
+  await clickTool(page, /Delete Pages/);
+  await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
+  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await page.getByRole("button", { name: /Page 2/ }).click();
+  await expect(page.locator(".page-delete-overlay")).toHaveCount(1);
+  await page.getByRole("button", { name: /Remove Selected Pages/ }).click();
+  await expect(page.getByText("pages-pages-removed.pdf")).toBeVisible();
+  const deleted = await PDFDocument.load(await readFile(await downloadFirst(page)));
+  expect(deleted.getPageCount()).toBe(2);
+  expect(deleted.getPage(1).getSize()).toMatchObject({ width: 380, height: 300 });
+
+  await page.goto("/");
+  await clickTool(page, /Organize Pages/);
+  await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
+  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await page.getByRole("button", { name: /Page 3/ }).click();
+  await page.getByRole("button", { name: /Move up/ }).click();
+  await page.getByRole("button", { name: /Move up/ }).click();
+  await page.getByRole("button", { name: /Rotate right/ }).click();
+  await page.getByRole("button", { name: /^Organize PDF$/ }).click();
+  await expect(page.getByText("pages-organized.pdf")).toBeVisible();
+  const organized = await PDFDocument.load(await readFile(await downloadFirst(page)));
+  expect(organized.getPageCount()).toBe(3);
+  expect(organized.getPage(0).getSize()).toMatchObject({ width: 380, height: 300 });
+  expect(organized.getPage(0).getRotation().angle).toBe(90);
+
+  await page.goto("/");
+  await clickTool(page, /Rotate PDF/);
+  await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
+  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await page.getByRole("button", { name: /Page 1/ }).click();
+  await page.getByRole("button", { name: /Rotate Selected Pages/ }).click();
+  await expect(page.getByText("pages-rotated-90.pdf")).toBeVisible();
+  const rotated = await PDFDocument.load(await readFile(await downloadFirst(page)));
+  expect(rotated.getPage(0).getRotation().angle).toBe(90);
+  expect(rotated.getPage(1).getRotation().angle).toBe(0);
+});
+
 test("places and exports a visual PDF signature", async ({ page, isMobile }) => {
   await page.goto("/");
   await clickTool(page, /Sign PDF/);
@@ -290,6 +349,16 @@ async function makePdf(label: string, size: [number, number] = [360, 240]): Prom
   const font = await doc.embedFont(StandardFonts.HelveticaBold);
   const page = doc.addPage(size);
   page.drawText(label, { x: Math.min(64, size[0] * 0.18), y: size[1] * 0.55, size: 42, font });
+  return doc.save();
+}
+
+async function makeMultiPagePdf(pages: Array<[string, [number, number]]>): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.HelveticaBold);
+  for (const [label, size] of pages) {
+    const pdfPage = doc.addPage(size);
+    pdfPage.drawText(label, { x: Math.min(64, size[0] * 0.18), y: size[1] * 0.55, size: 42, font });
+  }
   return doc.save();
 }
 

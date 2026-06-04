@@ -28,11 +28,11 @@ For tools that need a real desktop conversion engine, DocuKind shows a dedicated
 ### PDF Tools
 
 - **Merge PDF**: combine multiple PDFs with first-page previews, page counts, drag reorder, clean output naming, and optional blank separator pages for double-sided printing.
-- **Split PDF**: create one PDF per page or split by custom ranges.
-- **Organize pages**: reorder pages with a custom sequence like `3,1,2`.
-- **Rotate PDF**: rotate all pages or selected pages.
-- **Delete pages**: remove unwanted pages.
-- **Extract pages**: save selected pages as a new PDF.
+- **Split PDF**: use the visual page workspace to split every page, selected pages, or custom ranges.
+- **Organize pages**: drag page thumbnails into order, rotate selected pages, remove pages, reverse order, and export the final sequence.
+- **Rotate PDF**: select pages from thumbnails and preview rotation before exporting.
+- **Delete pages**: mark unwanted pages visually before creating the cleaned PDF.
+- **Extract pages**: click page thumbnails to save selected pages as a new PDF.
 - **Images to PDF**: turn JPG, PNG, or WebP images into PDF pages with fit, margin, page size, and background controls.
 - **PDF to images**: export selected pages as PNG or JPG files.
 - **PDF to Word**: download a local pdf2docx-based converter pack for editable DOCX output.

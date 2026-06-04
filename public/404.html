@@ -9,14 +9,15 @@
     <script>
       (function () {
         var path = window.location.pathname;
-        var marker = "/tool/";
         var base = "/";
-        if (path.indexOf(marker) >= 0) {
-          base = path.slice(0, path.indexOf(marker)) + "/";
-        } else if (path.slice(-4) === "/pdf") {
-          base = path.slice(0, -3);
-        } else if (path.slice(-6) === "/image") {
-          base = path.slice(0, -5);
+        var parts = path.split("/").filter(Boolean);
+        var toolIndex = parts.indexOf("tool");
+        if (toolIndex > 0) {
+          base = "/" + parts.slice(0, toolIndex).join("/") + "/";
+        } else if (parts.length > 1 && (parts[1] === "pdf" || parts[1] === "image")) {
+          base = "/" + parts[0] + "/";
+        } else if (parts.length > 0 && parts[0] !== "pdf" && parts[0] !== "image" && parts[0] !== "tool") {
+          base = "/" + parts[0] + "/";
         }
         var route = path + window.location.search + window.location.hash;
         window.location.replace(base + "?route=" + encodeURIComponent(route));

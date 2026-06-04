@@ -6,6 +6,7 @@ import { FileDropzone } from "./components/FileDropzone";
 import { Icon } from "./components/Icon";
 import { ImageRegionSelector } from "./components/ImageRegionSelector";
 import { MergePdfWorkspace } from "./components/MergePdfWorkspace";
+import { isPagePdfTool, PagePdfWorkspace } from "./components/PagePdfWorkspace";
 import { PdfPreview } from "./components/PdfPreview";
 import { ResultList } from "./components/ResultList";
 import { SignPdfWorkspace } from "./components/SignPdfWorkspace";
@@ -41,7 +42,9 @@ export default function App() {
           ? <MergePdfWorkspace tool={tool} />
           : tool.id === "sign-pdf"
             ? <SignPdfWorkspace tool={tool} />
-            : <ToolWorkspace tool={tool} />
+            : isPagePdfTool(tool)
+              ? <PagePdfWorkspace tool={tool} />
+              : <ToolWorkspace tool={tool} />
       ) : <Dashboard suite={suite} />}</main>
     </div>
   );
