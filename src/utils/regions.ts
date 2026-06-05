@@ -60,17 +60,18 @@ export function ratioFromOption(value: unknown): number | undefined {
   return width / height;
 }
 
-export function applyAspectRatio(region: PercentRegion, ratio: number | undefined): PercentRegion {
+export function applyAspectRatio(region: PercentRegion, ratio: number | undefined, sourceAspectRatio = 1): PercentRegion {
   if (!ratio || region.width <= 0 || region.height <= 0) return region;
 
+  const percentRatio = ratio / Math.max(sourceAspectRatio, 0.0001);
   const current = region.width / region.height;
   let width = region.width;
   let height = region.height;
 
-  if (current > ratio) {
-    width = height * ratio;
+  if (current > percentRatio) {
+    width = height * percentRatio;
   } else {
-    height = width / ratio;
+    height = width / percentRatio;
   }
 
   return {
@@ -102,7 +103,8 @@ export function resizePercentRegion(
   handle: RegionResizeHandle,
   deltaX: number,
   deltaY: number,
-  ratio?: number
+  ratio?: number,
+  sourceAspectRatio = 1
 ): PercentRegion {
   let next = { ...region };
 
@@ -122,7 +124,7 @@ export function resizePercentRegion(
   }
 
   next = clampPercentRegion(next);
-  return ratio ? clampPercentRegion(applyAspectRatio(next, ratio)) : next;
+  return ratio ? clampPercentRegion(applyAspectRatio(next, ratio, sourceAspectRatio)) : next;
 }
 
 export function replacePercentRegion(regions: PercentRegion[], index: number, next: PercentRegion): PercentRegion[] {

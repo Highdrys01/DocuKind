@@ -42,6 +42,11 @@ type SignPdfWorkspaceProps = {
   tool: ToolDefinition;
 };
 
+type Point = {
+  x: number;
+  y: number;
+};
+
 const PREVIEW_SCALE = 1.35;
 const MAX_SIGNATURE_IMAGE_BYTES = 8 * 1024 * 1024;
 const styleChoices: Array<{ id: SignatureFontStyle; label: string; font: string }> = [
@@ -56,6 +61,7 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [preview, setPreview] = useState<RenderedPage | null>(null);
+  const [renderedPageNumber, setRenderedPageNumber] = useState(0);
   const [pageViewports, setPageViewports] = useState<PageViewport[]>([]);
   const [placements, setPlacements] = useState<SignaturePlacement[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -87,7 +93,8 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   );
 
   const file = files[0];
-  const currentViewport = preview?.viewport ?? null;
+  const isCurrentPageReady = !!preview && renderedPageNumber === pageNumber;
+  const currentViewport = isCurrentPageReady ? preview.viewport : null;
   const pageSizes = useMemo(() => pageViewports.map(pageSizeFromViewport), [pageViewports]);
   const pageSize = currentViewport ? pageSizeFromViewport(currentViewport) : null;
   const { isOver: isPageDropActive, setNodeRef: setDroppableNodeRef } = useDroppable({
@@ -95,12 +102,13 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     disabled: !currentViewport
   });
   const currentPlacements = placements.filter((placement) => placement.pageIndex === pageNumber - 1);
-  const selectedPlacement = placements.find((placement) => placement.id === selectedId);
+  const selectedPlacement = placements.find((placement) => placement.id === selectedId && placement.pageIndex === pageNumber - 1);
 
   useEffect(() => {
     setPageNumber(1);
     setPageCount(0);
     setPreview(null);
+    setRenderedPageNumber(0);
     setPageViewports([]);
     setPlacements([]);
     setSelectedId("");
@@ -114,11 +122,14 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
 
     async function render() {
       if (!file) return;
+      setPreview(null);
+      setRenderedPageNumber(0);
       setProgress("Rendering page");
       try {
         const rendered = await renderPdfPage(file, pageNumber, PREVIEW_SCALE);
         if (!cancelled) {
           setPreview(rendered);
+          setRenderedPageNumber(pageNumber);
           setProgress("");
         }
       } catch (caught) {
@@ -162,7 +173,11 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   }, [file]);
 
   useEffect(() => {
-    if (!canvasHostRef.current || !preview) return;
+    if (!canvasHostRef.current) return;
+    if (!preview) {
+      canvasHostRef.current.replaceChildren();
+      return;
+    }
     preview.canvas.className = "signature-page-canvas";
     canvasHostRef.current.replaceChildren(preview.canvas);
   }, [preview]);
@@ -189,12 +204,10 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     const canvas = drawCanvasRef.current;
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
-    context.clearRect(0, 0, canvas.width, canvas.height);
     context.lineWidth = 4;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.strokeStyle = color;
-    setDrawnImageData("");
   }, [color]);
 
   const addPlacement = (kind: SignatureFieldKind, point: { x: number; y: number }) => {
@@ -370,6 +383,14 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     setDrawnImageData(canvasHasInk(canvas) ? canvas.toDataURL("image/png") : "");
   };
 
+  const canvasPoint = (canvas: HTMLCanvasElement, clientX: number, clientY: number): Point => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / Math.max(1, rect.width)) * canvas.width,
+      y: ((clientY - rect.top) / Math.max(1, rect.height)) * canvas.height
+    };
+  };
+
   const canPlaceField = (kind: SignatureFieldKind): boolean => {
     const value = valueForKind(kind);
     if ((kind === "signature" || kind === "initials") && signatureMode === "draw" && !drawnImageData) {
@@ -427,18 +448,23 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     setError("");
   };
 
-  const duplicateSelectedPlacement = () => {
-    if (!selectedPlacement) return;
-    const targetSize = pageSizes[selectedPlacement.pageIndex] ?? pageSize;
+  const duplicatePlacement = (source: SignaturePlacement) => {
+    const targetSize = pageSizes[source.pageIndex] ?? pageSize;
     const duplicate = {
-      ...selectedPlacement,
-      id: `${selectedPlacement.kind}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
-      x: selectedPlacement.x + 12,
-      y: selectedPlacement.y - 12
+      ...source,
+      id: `${source.kind}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
+      x: source.x + 12,
+      y: source.y - 12
     };
     const next = targetSize ? clampPlacement(duplicate, targetSize) : duplicate;
     setPlacements((current) => [...current, next]);
     setSelectedId(next.id);
+    setResults([]);
+  };
+
+  const deletePlacement = (id: string) => {
+    setPlacements((current) => current.filter((placement) => placement.id !== id));
+    setSelectedId((current) => current === id ? "" : current);
     setResults([]);
   };
 
@@ -458,6 +484,11 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
         y: current.y + delta.dy
       };
     });
+  };
+
+  const jumpToPage = (value: number) => {
+    const lastPage = Math.max(1, pageCount || 1);
+    setPageNumber(Math.min(lastPage, Math.max(1, value)));
   };
 
   return (
@@ -495,11 +526,23 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                 <SignatureThumbnails file={file} pageCount={pageCount} pageNumber={pageNumber} onSelect={setPageNumber} />
                 <div className="signature-page-shell">
                   <div className="signature-page-toolbar">
-                    <button className="icon-button" type="button" aria-label="Previous page" disabled={pageNumber <= 1} onClick={() => setPageNumber((value) => Math.max(1, value - 1))}>
+                    <button className="icon-button" type="button" aria-label="Previous page" disabled={!isCurrentPageReady || pageNumber <= 1} onClick={() => setPageNumber((value) => Math.max(1, value - 1))}>
                       <Icon name="ArrowUp" size={16} />
                     </button>
-                    <span>Page {pageNumber} / {pageCount || 1}</span>
-                    <button className="icon-button" type="button" aria-label="Next page" disabled={pageCount > 0 && pageNumber >= pageCount} onClick={() => setPageNumber((value) => Math.min(pageCount || value + 1, value + 1))}>
+                    <label className="signature-page-jump">
+                      <span>Page</span>
+                      <input
+                        aria-label="Go to page"
+                        disabled={!pageCount || !isCurrentPageReady}
+                        max={pageCount || 1}
+                        min={1}
+                        type="number"
+                        value={pageNumber}
+                        onChange={(event) => jumpToPage(Number(event.currentTarget.value))}
+                      />
+                      <span>/ {pageCount || 1}</span>
+                    </label>
+                    <button className="icon-button" type="button" aria-label="Next page" disabled={!isCurrentPageReady || (pageCount > 0 && pageNumber >= pageCount)} onClick={() => setPageNumber((value) => Math.min(pageCount || value + 1, value + 1))}>
                       <Icon name="ArrowDown" size={16} />
                     </button>
                   </div>
@@ -512,6 +555,12 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                   <div className="signature-page-stage">
                     <div className="signature-page-stack">
                       <div ref={canvasHostRef} className="signature-canvas-host" />
+                      {!currentViewport && (
+                        <div className="signature-page-loading">
+                          <Icon name="Loader2" className="spin" size={18} />
+                          Rendering page
+                        </div>
+                      )}
                       {currentViewport && (
                         <div
                           ref={setOverlayNode}
@@ -530,6 +579,8 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                               previewSize={overlaySize}
                               selected={placement.id === selectedId}
                               onSelect={() => setSelectedId(placement.id)}
+                              onDuplicate={() => duplicatePlacement(placement)}
+                              onDelete={() => deletePlacement(placement.id)}
                               onPreviewRectChange={(rect) => updatePlacementFromPreviewRect(placement.id, rect)}
                               onKeyNudge={(dx, dy) => nudgePlacementVisually(placement.id, dx, dy, overlaySize)}
                             />
@@ -605,17 +656,17 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                     const context = event.currentTarget.getContext("2d");
                     if (!context) return;
                     drawingRef.current = true;
-                    const rect = event.currentTarget.getBoundingClientRect();
+                    const point = canvasPoint(event.currentTarget, event.clientX, event.clientY);
                     context.beginPath();
-                    context.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+                    context.moveTo(point.x, point.y);
                     event.currentTarget.setPointerCapture(event.pointerId);
                   }}
                   onPointerMove={(event) => {
                     if (!drawingRef.current) return;
                     const context = event.currentTarget.getContext("2d");
                     if (!context) return;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    context.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+                    const point = canvasPoint(event.currentTarget, event.clientX, event.clientY);
+                    context.lineTo(point.x, point.y);
                     context.stroke();
                   }}
                   onPointerUp={(event) => {
@@ -716,15 +767,11 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                 <input value={copyPages} placeholder="all or 1,3-5" onChange={(event) => setCopyPages(event.currentTarget.value)} />
               </label>
               <div className="field-actions-row">
-                <button className="button" type="button" onClick={duplicateSelectedPlacement}>
+                <button className="button" type="button" onClick={() => duplicatePlacement(selectedPlacement)}>
                   Duplicate
                 </button>
                 <button className="button" type="button" onClick={copySelectedToPages}>Copy</button>
-                <button className="button" type="button" onClick={() => {
-                  setPlacements((current) => current.filter((placement) => placement.id !== selectedPlacement.id));
-                  setSelectedId("");
-                  setResults([]);
-                }}>
+                <button className="button" type="button" onClick={() => deletePlacement(selectedPlacement.id)}>
                   Delete
                 </button>
               </div>
@@ -746,6 +793,8 @@ function SignatureBox({
   previewSize,
   selected,
   onSelect,
+  onDuplicate,
+  onDelete,
   onPreviewRectChange,
   onKeyNudge
 }: {
@@ -754,6 +803,8 @@ function SignatureBox({
   previewSize: PageSize;
   selected: boolean;
   onSelect: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
   onPreviewRectChange: (rect: { x: number; y: number; width: number; height: number }) => void;
   onKeyNudge: (dx: number, dy: number) => void;
 }) {
@@ -772,6 +823,7 @@ function SignatureBox({
       size={{ width: rect.width, height: rect.height }}
       enableResizing={selected}
       aria-label={`${labelForKind(placement.kind)} field`}
+      cancel=".signature-field-toolbar, .signature-field-toolbar *"
       role="button"
       tabIndex={0}
       onDragStart={onSelect}
@@ -819,6 +871,39 @@ function SignatureBox({
           <strong>{placement.value}</strong>
         )}
       </span>
+      {selected && (
+        <>
+          <span className="signature-resize-handle" aria-hidden="true" />
+          <span className="signature-field-toolbar" aria-label={`${labelForKind(placement.kind)} field actions`}>
+            <button
+              type="button"
+              aria-label={`Duplicate ${labelForKind(placement.kind)} field`}
+              title="Duplicate"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDuplicate();
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Icon name="Copy" size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete ${labelForKind(placement.kind)} field`}
+              title="Delete"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Icon name="Trash2" size={14} />
+            </button>
+          </span>
+        </>
+      )}
     </Rnd>
   );
 }
@@ -841,9 +926,13 @@ function DraggableFieldButton({ active, field, onChoose }: {
       data-testid={`palette-${field.kind}`}
       style={style}
       type="button"
-      onClick={onChoose}
       {...attributes}
       {...listeners}
+      onClick={onChoose}
+      onPointerDown={(event) => {
+        onChoose();
+        listeners?.onPointerDown?.(event);
+      }}
     >
       <Icon name={field.icon} size={18} />
       {field.label}

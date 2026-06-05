@@ -21,6 +21,26 @@ describe("image helpers", () => {
     });
   });
 
+  it("treats bare 0-100 region entries as percentages", () => {
+    expect(parseRegion("10,20,50,40", 200, 100)).toEqual({
+      x: 20,
+      y: 20,
+      width: 100,
+      height: 40,
+      unit: "pixel"
+    });
+  });
+
+  it("keeps large bare region entries as pixels", () => {
+    expect(parseRegion("10,20,120,40", 200, 100)).toEqual({
+      x: 10,
+      y: 20,
+      width: 120,
+      height: 40,
+      unit: "pixel"
+    });
+  });
+
   it("formats regions as percentages", () => {
     expect(formatPercentRegion({ x: 20, y: 10, width: 80, height: 40, unit: "pixel" }, 200, 100)).toBe("10.0%,10.0%,40.0%,40.0%");
   });

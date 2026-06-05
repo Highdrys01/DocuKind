@@ -184,13 +184,14 @@ export function parseRegion(value: string, sourceWidth: number, sourceHeight: nu
     throw new Error(`Region "${value}" is not valid. Use x,y,width,height.`);
   }
 
-  const isPercent = tokens.some((token) => token.endsWith("%"));
+  const hasExplicitPercent = tokens.some((token) => token.endsWith("%"));
   const values = tokens.map((token) => Number(token.replace("%", "")));
   if (values.some((number) => !Number.isFinite(number))) {
     throw new Error(`Region "${value}" contains invalid numbers.`);
   }
 
   const [x, y, width, height] = values;
+  const isPercent = hasExplicitPercent || values.every((number) => number >= 0 && number <= 100);
   const region = isPercent
     ? { x: (x / 100) * sourceWidth, y: (y / 100) * sourceHeight, width: (width / 100) * sourceWidth, height: (height / 100) * sourceHeight }
     : { x, y, width, height };

@@ -596,7 +596,7 @@ export const tools: ToolDefinition[] = [
     multiple: true,
     minFiles: 1,
     options: [
-      { name: "cropRegion", label: "Selected crop", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Drag on the preview or enter x,y,width,height." },
+      { name: "cropRegion", label: "Selected crop", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Drag on the preview or enter x,y,width,height. 0-100 values are treated as percentages." },
       { name: "aspectRatio", label: "Aspect", type: "select", defaultValue: "free", choices: aspectRatioChoices, help: "Used when dragging on the preview." },
       { name: "x", label: "X", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
       { name: "y", label: "Y", type: "number", defaultValue: 0, min: 0, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
@@ -737,7 +737,7 @@ export const tools: ToolDefinition[] = [
     multiple: true,
     minFiles: 1,
     options: [
-      { name: "cropRegion", label: "Crop region", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Optional. Drag on the preview or enter x,y,width,height." },
+      { name: "cropRegion", label: "Crop region", type: "text", defaultValue: "", placeholder: "10%,10%,80%,80%", help: "Optional. Drag on the preview or enter x,y,width,height. 0-100 values are treated as percentages." },
       { name: "aspectRatio", label: "Aspect", type: "select", defaultValue: "free", choices: aspectRatioChoices, help: "Used when dragging on the preview." },
       { name: "rotate", label: "Rotate", type: "select", defaultValue: "0", choices: [{ label: "0 degrees", value: "0" }, { label: "90 degrees", value: "90" }, { label: "180 degrees", value: "180" }, { label: "270 degrees", value: "270" }] },
       { name: "flipX", label: "Flip horizontal", type: "checkbox", defaultValue: false },
@@ -765,7 +765,7 @@ export const tools: ToolDefinition[] = [
     multiple: true,
     minFiles: 1,
     options: [
-      { name: "regions", label: "Regions", type: "textarea", defaultValue: "", placeholder: "10%,10%,35%,20%", help: "Drag on the preview or enter x,y,width,height. Separate multiple regions with semicolons." },
+      { name: "regions", label: "Regions", type: "textarea", defaultValue: "", placeholder: "10%,10%,35%,20%", help: "Drag on the preview or enter x,y,width,height. 0-100 values are treated as percentages. Separate multiple regions with semicolons." },
       { name: "mode", label: "Mode", type: "select", defaultValue: "blur", choices: [{ label: "Blur", value: "blur" }, { label: "Redact", value: "redact" }] },
       { name: "blurAmount", label: "Blur amount", type: "range", defaultValue: 14, min: 1, max: 40, step: 1, showWhen: (options) => options.mode !== "redact" },
       { name: "redactColor", label: "Redact color", type: "color", defaultValue: "#111111", showWhen: (options) => options.mode === "redact" },

@@ -1321,6 +1321,26 @@ a {
   min-height: 48px;
 }
 
+.signature-page-jump {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-weight: 900;
+  gap: 7px;
+}
+
+.signature-page-jump input {
+  background: var(--panel-strong);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  height: 34px;
+  padding: 0 4px;
+  text-align: center;
+  width: 58px;
+}
+
 .signature-placement-help {
   align-items: center;
   background: var(--panel-strong);
@@ -1350,11 +1370,29 @@ a {
 .signature-page-stack {
   box-shadow: 0 10px 30px rgba(31, 42, 36, 0.14);
   display: inline-block;
+  min-height: 140px;
+  min-width: min(320px, 74vw);
   position: relative;
 }
 
 .signature-canvas-host {
   display: block;
+}
+
+.signature-page-loading {
+  align-items: center;
+  background: var(--paper);
+  color: var(--muted);
+  display: flex;
+  font-weight: 900;
+  gap: 8px;
+  inset: 0;
+  justify-content: center;
+  min-height: 140px;
+  min-width: min(320px, 74vw);
+  padding: 28px;
+  position: absolute;
+  z-index: 2;
 }
 
 .signature-page-canvas {
@@ -1457,9 +1495,46 @@ a {
   bottom: 2px;
   cursor: nwse-resize;
   height: 0;
+  pointer-events: none;
   position: absolute;
   right: 2px;
+  z-index: 3;
   width: 0;
+}
+
+.signature-field-toolbar {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--suite-accent);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(31, 42, 36, 0.16);
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  position: absolute;
+  right: -1px;
+  top: -32px;
+  z-index: 4;
+}
+
+.signature-field-toolbar button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 24px;
+  justify-content: center;
+  padding: 0;
+  width: 24px;
+}
+
+.signature-field-toolbar button:hover,
+.signature-field-toolbar button:focus-visible {
+  background: var(--suite-soft);
+  outline: none;
 }
 
 .signature-style-list,
@@ -1659,7 +1734,9 @@ a {
   border: 1px solid var(--line);
   border-radius: 8px;
   cursor: crosshair;
+  display: inline-block;
   max-height: 520px;
+  max-width: 100%;
   overflow: hidden;
   position: relative;
   touch-action: none;
@@ -1668,10 +1745,12 @@ a {
 
 .region-canvas img {
   display: block;
+  height: auto;
   max-height: 520px;
+  max-width: 100%;
   object-fit: contain;
   pointer-events: none;
-  width: 100%;
+  width: auto;
 }
 
 .region-box {

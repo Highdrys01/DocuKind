@@ -165,10 +165,28 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
   await expect(canvas).toBeVisible();
   await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
   await expect(page.getByText(/Click the document to place it/)).toBeVisible();
+  const pageJump = page.getByLabel("Go to page");
+  await pageJump.fill("2");
+  await expect(pageJump).toHaveValue("2");
+  await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
+  await pageJump.fill("1");
+  await expect(pageJump).toHaveValue("1");
+  await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
 
   await page.getByLabel("Full name").fill("Ada Lovelace");
   await page.getByLabel("Initials").fill("AL");
   await page.getByLabel("Custom text").fill("Approved locally");
+  await page.getByRole("button", { name: "Draw" }).click();
+  const drawCanvas = page.locator(".draw-pad canvas");
+  const drawBox = await drawCanvas.boundingBox();
+  if (!drawBox) throw new Error("Draw pad did not have a bounding box.");
+  await page.mouse.move(drawBox.x + 12, drawBox.y + drawBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(drawBox.x + drawBox.width - 12, drawBox.y + drawBox.height / 2);
+  await page.mouse.up();
+  await expect.poll(async () => drawCanvas.evaluate(canvasHasInk)).toBe(true);
+  await page.getByRole("button", { name: "Use color #e23a3a" }).click();
+  await expect.poll(async () => drawCanvas.evaluate(canvasHasInk)).toBe(true);
   await page.getByRole("button", { name: "Upload" }).click();
   await page.locator(".upload-inline input").setInputFiles({
     name: "signature.png",
@@ -190,12 +208,18 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
     await dragPaletteFieldToPreview(page, "text", 0.36, 0.84);
   }
   await page.getByTestId("palette-initials").click();
+  await expect(page.locator(".signature-placement-help")).toContainText("Initials");
   await placeFieldOnPreview(page, 0.72, 0.72);
   await expect(page.locator(".signature-field-box")).toHaveCount(5);
   const dateLabelBox = await page.locator('.signature-field-box[data-kind="date"] .signature-field-label').first().boundingBox();
   const dateContentBox = await page.locator('.signature-field-box[data-kind="date"] .signature-field-content').first().boundingBox();
   if (!dateLabelBox || !dateContentBox) throw new Error("Date field label/content did not render.");
   expect(dateLabelBox.y + dateLabelBox.height).toBeLessThanOrEqual(dateContentBox.y + 1);
+  await page.locator('.signature-field-box[data-kind="initials"]').click();
+  await page.getByRole("button", { name: "Duplicate Initials field" }).click();
+  await expect(page.locator(".signature-field-box")).toHaveCount(6);
+  await page.getByRole("button", { name: "Delete Initials field" }).click();
+  await expect(page.locator(".signature-field-box")).toHaveCount(5);
 
   const field = page.locator(".signature-field-box").first();
   const fieldBox = await field.boundingBox();
@@ -214,6 +238,7 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
   await clickCenterVerifiedButton(page, "Copy");
   await page.getByRole("button", { name: "Next page" }).click();
   await expect(page.locator(".signature-field-box")).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Selected Field" })).toBeHidden();
 
   await page.getByRole("button", { name: /^Sign PDF$/ }).click();
   await expect(page.getByText("sign-source-signed.pdf")).toBeVisible();
@@ -245,21 +270,35 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
   await expect(page.locator(".region-box").first()).toBeVisible();
   await page.locator(".region-canvas").scrollIntoViewIfNeeded();
-  const cropInput = page.getByLabel("Selected crop");
-  const defaultCrop = await cropInput.inputValue();
+  const regionInputs = page.locator(".region-details input");
+  const defaultCrop = await regionInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value).join(","));
   const cropBox = await page.locator(".region-box").first().boundingBox();
   if (!cropBox) throw new Error("Crop region did not render.");
   await page.mouse.move(cropBox.x + cropBox.width / 2, cropBox.y + cropBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(cropBox.x + cropBox.width / 2 + 14, cropBox.y + cropBox.height / 2 + 8);
   await page.mouse.up();
-  await expect.poll(async () => cropInput.inputValue()).not.toBe(defaultCrop);
-  await page.getByLabel("Selected crop").fill("25%,20%,50%,50%");
+  await expect.poll(async () => regionInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value).join(","))).not.toBe(defaultCrop);
+  await regionInputs.nth(0).fill("25");
+  await regionInputs.nth(1).fill("20");
+  await regionInputs.nth(2).fill("50");
+  await regionInputs.nth(3).fill("50");
   await page.getByRole("button", { name: /Run Crop Image/ }).click();
   await expect(page.getByText("fixture-crop-80x50.png")).toBeVisible();
 
   const cropped = await downloadFirst(page);
   expect(readPngSize(await readFile(cropped))).toEqual({ width: 80, height: 50 });
+  await page.getByLabel("Aspect").selectOption("1:1");
+  await regionInputs.nth(3).fill("49");
+  await expect.poll(async () => Number(await regionInputs.nth(2).inputValue())).toBeLessThan(40);
+  await regionInputs.nth(3).fill("50");
+  await expect.poll(async () => Number(await regionInputs.nth(3).inputValue())).toBe(50);
+  await expect.poll(async () => Number(await regionInputs.nth(2).inputValue())).toBeGreaterThan(31);
+  await expect.poll(async () => Number(await regionInputs.nth(2).inputValue())).toBeLessThan(33);
+  await page.getByRole("button", { name: /Run Crop Image/ }).click();
+  await expect(page.getByText("fixture-crop-50x50.png")).toBeVisible();
+  const squareCropped = await downloadFirst(page);
+  expect(readPngSize(await readFile(squareCropped))).toEqual({ width: 50, height: 50 });
 
   await page.getByRole("button", { name: "Tools", exact: true }).click();
   await page.getByRole("button", { name: /Image Tools/ }).click();
@@ -365,7 +404,16 @@ test("converts, watermarks, memes, and redacts images", async ({ page }) => {
   await page.getByRole("button", { name: /Image Tools/ }).click();
   await clickTool(page, /Blur \/ Redact Image/);
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
-  await page.getByLabel("Regions").fill("0%,0%,50%,50%");
+  await expect(page.locator(".region-canvas")).toBeVisible();
+  await expect(page.locator(".region-canvas img")).toBeVisible();
+  await page.locator(".region-canvas img").scrollIntoViewIfNeeded();
+  const redactCanvas = await page.locator(".region-canvas img").boundingBox();
+  if (!redactCanvas) throw new Error("Redact region canvas did not render.");
+  await page.mouse.move(redactCanvas.x + 2, redactCanvas.y + 2);
+  await page.mouse.down();
+  await page.mouse.move(redactCanvas.x + redactCanvas.width * 0.5, redactCanvas.y + redactCanvas.height * 0.5);
+  await page.mouse.up();
+  await expect(page.locator(".region-box")).toHaveCount(1);
   await page.getByLabel("Mode").selectOption("redact");
   await page.getByRole("button", { name: /Run Blur \/ Redact Image/ }).click();
   await expect(page.getByText("fixture-redact.png")).toBeVisible();
@@ -498,6 +546,16 @@ function isCanvasNonBlank(element: HTMLCanvasElement): boolean {
   const data = context.getImageData(0, 0, element.width, element.height).data;
   for (let index = 0; index < data.length; index += 4) {
     if (data[index] < 245 || data[index + 1] < 245 || data[index + 2] < 245) return true;
+  }
+  return false;
+}
+
+function canvasHasInk(element: HTMLCanvasElement): boolean {
+  const context = element.getContext("2d");
+  if (!context) return false;
+  const data = context.getImageData(0, 0, element.width, element.height).data;
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] > 0) return true;
   }
   return false;
 }

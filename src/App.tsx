@@ -160,6 +160,16 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const hiddenVisualRegionOptions = new Set(
+    tool.id === "crop-image"
+      ? ["cropRegion", "x", "y", "cropWidth", "cropHeight"]
+      : tool.id === "photo-editor"
+        ? ["cropRegion"]
+        : tool.id === "blur-redact-image"
+          ? ["regions"]
+          : []
+  );
+  const visibleOptionFields = tool.options.filter((option) => !hiddenVisualRegionOptions.has(option.name));
 
   useEffect(() => {
     setFiles([]);
@@ -236,16 +246,16 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
             }} />
           )}
 
-          {tool.options.length > 0 && (
+          {visibleOptionFields.length > 0 && (
             <section className="settings">
               <div className="section-heading">
                 <h2>Settings</h2>
               </div>
-              <ToolOptionsForm fields={tool.options} options={options} onChange={setOptions} />
+              <ToolOptionsForm fields={visibleOptionFields} options={options} onChange={setOptions} />
               {tool.id === "compress" && options.mode === "raster" && (
                 <p className="warning-copy">Raster scan rebuilds pages as images. Text selection and form fields will not survive.</p>
               )}
-              {tool.options.some((option) => option.name === "pages") && (
+              {visibleOptionFields.some((option) => option.name === "pages") && (
                 <p className="quiet-copy">Page fields accept `all`, `first`, `last`, `odd`, `even`, and ranges like `2-6`.</p>
               )}
             </section>

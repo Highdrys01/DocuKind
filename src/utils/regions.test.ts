@@ -36,6 +36,15 @@ describe("region helpers", () => {
     });
   });
 
+  it("applies aspect ratio presets against non-square source images", () => {
+    expect(applyAspectRatio({ x: 10, y: 10, width: 80, height: 80 }, 1, 160 / 100)).toEqual({
+      x: 10,
+      y: 10,
+      width: 50,
+      height: 80
+    });
+  });
+
   it("leaves freeform regions unchanged", () => {
     expect(ratioFromOption("free")).toBeUndefined();
     expect(applyAspectRatio({ x: 5, y: 5, width: 40, height: 20 }, undefined)).toEqual({

@@ -69,26 +69,40 @@ export function ImageRegionSelector({
   onChange
 }: ImageRegionSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const interactionRef = useRef<Interaction | null>(null);
   const [url, setUrl] = useState("");
   const [interaction, setInteraction] = useState<Interaction | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [didApplyDefault, setDidApplyDefault] = useState(false);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     if (!file || !file.type.startsWith("image/")) {
       setUrl("");
+      setImageSize(null);
       setDidApplyDefault(false);
       return;
     }
 
     const nextUrl = URL.createObjectURL(file);
     setUrl(nextUrl);
+    setImageSize(null);
     setDidApplyDefault(false);
-    return () => URL.revokeObjectURL(nextUrl);
+    const image = new Image();
+    image.onload = () => {
+      setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.src = nextUrl;
+    return () => {
+      image.onload = null;
+      URL.revokeObjectURL(nextUrl);
+    };
   }, [file]);
 
   const regions = useMemo(() => parsePercentRegions(String(options[optionName] ?? "")), [optionName, options]);
   const ratio = ratioFromOption(aspectRatio);
+  const sourceAspectRatio = imageSize && imageSize.width > 0 && imageSize.height > 0 ? imageSize.width / imageSize.height : 1;
   const drawRegion = interaction?.type === "draw"
     ? applyAspectRatio(
       normalizeDragRegion({
@@ -97,10 +111,16 @@ export function ImageRegionSelector({
         currentX: interaction.current.x,
         currentY: interaction.current.y
       }),
-      ratio
+      ratio,
+      sourceAspectRatio
     )
     : null;
   const activeRegion = regions[activeIndex];
+
+  const setInteractionState = (next: Interaction | null) => {
+    interactionRef.current = next;
+    setInteraction(next);
+  };
 
   useEffect(() => {
     if (!url || didApplyDefault || mode !== "single" || regions.length > 0 || !defaultRegion) return;
@@ -119,7 +139,7 @@ export function ImageRegionSelector({
   };
 
   const commitRegion = (state: DragState) => {
-    const normalized = applyAspectRatio(normalizeDragRegion(state), ratio);
+    const normalized = applyAspectRatio(normalizeDragRegion(state), ratio, sourceAspectRatio);
     if (normalized.width < 1 || normalized.height < 1) return;
 
     const next = mode === "multi" ? [...regions, normalized] : [normalized];
@@ -128,7 +148,10 @@ export function ImageRegionSelector({
   };
 
   const clientPointToPercent = (clientX: number, clientY: number): Point => {
-    const rect = containerRef.current?.getBoundingClientRect();
+    const imageRect = imageRef.current?.getBoundingClientRect();
+    const rect = imageRect && imageRect.width > 0 && imageRect.height > 0
+      ? imageRect
+      : containerRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
 
     return {
@@ -140,34 +163,35 @@ export function ImageRegionSelector({
   const pointerToPercent = (event: React.PointerEvent): Point => clientPointToPercent(event.clientX, event.clientY);
 
   const applyInteraction = (point: Point, finish = false) => {
-    if (!interaction) return;
+    const currentInteraction = interactionRef.current;
+    if (!currentInteraction) return;
 
-    if (interaction.type === "draw") {
+    if (currentInteraction.type === "draw") {
       if (finish) {
         commitRegion({
-          startX: interaction.start.x,
-          startY: interaction.start.y,
+          startX: currentInteraction.start.x,
+          startY: currentInteraction.start.y,
           currentX: point.x,
           currentY: point.y
         });
-        setInteraction(null);
+        setInteractionState(null);
       } else {
-        setInteraction({ ...interaction, current: point });
+        setInteractionState({ ...currentInteraction, current: point });
       }
       return;
     }
 
-    const deltaX = point.x - interaction.start.x;
-    const deltaY = point.y - interaction.start.y;
-    const nextRegion = interaction.type === "move"
-      ? movePercentRegion(interaction.region, deltaX, deltaY)
-      : resizePercentRegion(interaction.region, interaction.handle, deltaX, deltaY, ratio);
-    setRegions(replacePercentRegion(regions, interaction.index, nextRegion));
-    if (finish) setInteraction(null);
+    const deltaX = point.x - currentInteraction.start.x;
+    const deltaY = point.y - currentInteraction.start.y;
+    const nextRegion = currentInteraction.type === "move"
+      ? movePercentRegion(currentInteraction.region, deltaX, deltaY)
+      : resizePercentRegion(currentInteraction.region, currentInteraction.handle, deltaX, deltaY, ratio, sourceAspectRatio);
+    setRegions(replacePercentRegion(regions, currentInteraction.index, nextRegion));
+    if (finish) setInteractionState(null);
   };
 
   const beginRegionInteraction = (nextInteraction: Extract<Interaction, { type: "move" | "resize" }>) => {
-    setInteraction(nextInteraction);
+    setInteractionState(nextInteraction);
 
     const handlePointerMove = (event: PointerEvent | MouseEvent) => {
       const point = clientPointToPercent(event.clientX, event.clientY);
@@ -175,13 +199,13 @@ export function ImageRegionSelector({
       const deltaY = point.y - nextInteraction.start.y;
       const nextRegion = nextInteraction.type === "move"
         ? movePercentRegion(nextInteraction.region, deltaX, deltaY)
-        : resizePercentRegion(nextInteraction.region, nextInteraction.handle, deltaX, deltaY, ratio);
+        : resizePercentRegion(nextInteraction.region, nextInteraction.handle, deltaX, deltaY, ratio, sourceAspectRatio);
       setRegions(replacePercentRegion(regions, nextInteraction.index, nextRegion));
     };
 
     const endInteraction = (event: PointerEvent | MouseEvent) => {
       handlePointerMove(event);
-      setInteraction(null);
+      setInteractionState(null);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", endInteraction);
       window.removeEventListener("pointercancel", endInteraction);
@@ -223,7 +247,21 @@ export function ImageRegionSelector({
 
   const updateActiveRegion = (region: PercentRegion) => {
     if (!activeRegion) return;
-    setRegions(replacePercentRegion(regions, activeIndex, applyAspectRatio(clampPercentRegion(region), ratio)));
+    setRegions(replacePercentRegion(regions, activeIndex, applyAspectRatio(clampPercentRegion(region), ratio, sourceAspectRatio)));
+  };
+
+  const updateActiveRegionSize = (dimension: "width" | "height", value: number) => {
+    if (!activeRegion) return;
+    if (!ratio) {
+      setRegions(replacePercentRegion(regions, activeIndex, clampPercentRegion({ ...activeRegion, [dimension]: value })));
+      return;
+    }
+
+    const percentRatio = ratio / Math.max(sourceAspectRatio, 0.0001);
+    const next = dimension === "width"
+      ? { ...activeRegion, width: value, height: value / percentRatio }
+      : { ...activeRegion, height: value, width: value * percentRatio };
+    setRegions(replacePercentRegion(regions, activeIndex, clampPercentRegion(next)));
   };
 
   const removeActiveRegion = () => {
@@ -273,10 +311,27 @@ export function ImageRegionSelector({
           }
           event.currentTarget.setPointerCapture(event.pointerId);
           const point = pointerToPercent(event);
-          setInteraction({ type: "draw", start: point, current: point });
+          setInteractionState({ type: "draw", start: point, current: point });
         }}
         onMouseDown={(event) => {
-          if (!beginExistingRegionInteraction(event.target as HTMLElement, clientPointToPercent(event.clientX, event.clientY))) return;
+          const point = clientPointToPercent(event.clientX, event.clientY);
+          if (beginExistingRegionInteraction(event.target as HTMLElement, point)) {
+            event.preventDefault();
+            return;
+          }
+          if (!interactionRef.current) {
+            setInteractionState({ type: "draw", start: point, current: point });
+          }
+          const handleMouseMove = (moveEvent: MouseEvent) => {
+            applyInteraction(clientPointToPercent(moveEvent.clientX, moveEvent.clientY));
+          };
+          const endMouseDraw = (upEvent: MouseEvent) => {
+            applyInteraction(clientPointToPercent(upEvent.clientX, upEvent.clientY), true);
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", endMouseDraw);
+          };
+          window.addEventListener("mousemove", handleMouseMove);
+          window.addEventListener("mouseup", endMouseDraw);
           event.preventDefault();
         }}
         onPointerMove={(event) => {
@@ -285,9 +340,20 @@ export function ImageRegionSelector({
         onPointerUp={(event) => {
           applyInteraction(pointerToPercent(event), true);
         }}
-        onPointerCancel={() => setInteraction(null)}
+        onPointerCancel={() => setInteractionState(null)}
       >
-        <img src={url} alt="" draggable={false} />
+        <img
+          ref={imageRef}
+          src={url}
+          alt=""
+          draggable={false}
+          onLoad={(event) => {
+            setImageSize({
+              width: event.currentTarget.naturalWidth,
+              height: event.currentTarget.naturalHeight
+            });
+          }}
+        />
         {regions.map((region, index) => (
           <button
             aria-label={`${label} region ${index + 1}`}
@@ -327,11 +393,11 @@ export function ImageRegionSelector({
           </label>
           <label className="field">
             <span>W</span>
-            <input type="number" value={round(activeRegion.width)} min={1} max={100} step={0.1} onChange={(event) => updateActiveRegion({ ...activeRegion, width: Number(event.currentTarget.value) })} />
+            <input type="number" value={round(activeRegion.width)} min={1} max={100} step={0.1} onChange={(event) => updateActiveRegionSize("width", Number(event.currentTarget.value))} />
           </label>
           <label className="field">
             <span>H</span>
-            <input type="number" value={round(activeRegion.height)} min={1} max={100} step={0.1} onChange={(event) => updateActiveRegion({ ...activeRegion, height: Number(event.currentTarget.value) })} />
+            <input type="number" value={round(activeRegion.height)} min={1} max={100} step={0.1} onChange={(event) => updateActiveRegionSize("height", Number(event.currentTarget.value))} />
           </label>
         </div>
       )}
