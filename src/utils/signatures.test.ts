@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   clampPlacement,
+  copyPlacementToViewportPage,
   dataUrlToBytes,
   placementToPreviewPixels,
+  placementToPreviewPixelsInViewport,
   parseSignaturePlacements,
   placementToPreviewRect,
   previewRectToPlacement,
+  previewRectToPlacementInViewport,
   previewDeltaToPdfDelta,
+  previewDeltaToPdfDeltaInViewport,
+  pointerToPdfPointInViewport,
   validateSignaturePlacements,
+  type PageViewport,
   type SignaturePlacement
 } from "./signatures";
 
@@ -38,10 +44,49 @@ describe("signature helpers", () => {
     });
   });
 
+  it("round-trips rotated PDF viewport coordinates", () => {
+    const viewport = makeViewport90();
+    const placement = makePlacement({ x: 40, y: 60, width: 100, height: 30 });
+    const preview = { width: 400, height: 300 };
+    const pixels = placementToPreviewPixelsInViewport(placement, viewport, preview);
+
+    expect(pixels).toEqual({ x: 30, y: 20, width: 15, height: 50 });
+    expect(previewRectToPlacementInViewport(placement, pixels, viewport, preview)).toMatchObject({
+      x: 40,
+      y: 60,
+      width: 100,
+      height: 30
+    });
+  });
+
+  it("converts pointer positions through rotated PDF viewports", () => {
+    const viewport = makeViewport90();
+    const point = pointerToPdfPointInViewport(100, 200, { left: 0, top: 0, width: 800, height: 600 } as DOMRect, viewport);
+
+    expect(point).toEqual({ x: 200, y: 100 });
+  });
+
+  it("converts visual nudge deltas through rotated PDF viewports", () => {
+    expect(previewDeltaToPdfDeltaInViewport(0, -20, makeViewport0(), { width: 600, height: 800 })).toEqual({ dx: 0, dy: 20 });
+    expect(previewDeltaToPdfDeltaInViewport(10, 0, makeViewport90(), { width: 800, height: 600 })).toEqual({ dx: 0, dy: 10 });
+    expect(previewDeltaToPdfDeltaInViewport(0, -10, makeViewport90(), { width: 800, height: 600 })).toEqual({ dx: -10, dy: 0 });
+  });
+
   it("clamps placement inside page bounds", () => {
     const clamped = clampPlacement(makePlacement({ x: 580, y: -10, width: 80, height: 20 }), page);
     expect(clamped.x).toBe(520);
     expect(clamped.y).toBe(0);
+  });
+
+  it("copies placements by visual position across rotated pages", () => {
+    const source = makeViewport0();
+    const target = makeViewport90();
+    const placement = makePlacement({ x: 60, y: 80, width: 120, height: 80 });
+    const copied = copyPlacementToViewportPage(placement, source, target, 1);
+    const copiedPixels = placementToPreviewPixelsInViewport(copied, target, { width: target.width, height: target.height });
+
+    expect(copied.pageIndex).toBe(1);
+    expect(copiedPixels).toEqual({ x: 80, y: 480, width: 160, height: 60 });
   });
 
   it("rejects blank placements and invalid pages", () => {
@@ -77,5 +122,27 @@ function makePlacement(overrides: Partial<SignaturePlacement> = {}): SignaturePl
     color: "#1f2a24",
     opacity: 1,
     ...overrides
+  };
+}
+
+function makeViewport0(): PageViewport {
+  return {
+    width: 600,
+    height: 800,
+    pdfWidth: 600,
+    pdfHeight: 800,
+    rotation: 0,
+    transform: [1, 0, 0, -1, 0, 800]
+  };
+}
+
+function makeViewport90(): PageViewport {
+  return {
+    width: 800,
+    height: 600,
+    pdfWidth: 600,
+    pdfHeight: 800,
+    rotation: 90,
+    transform: [0, 1, 1, 0, 0, 0]
   };
 }

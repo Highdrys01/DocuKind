@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { applyAspectRatio, formatPercentRegion, normalizeDragRegion, parsePercentRegions, ratioFromOption } from "./regions";
+import {
+  applyAspectRatio,
+  formatPercentRegion,
+  formatPercentRegions,
+  movePercentRegion,
+  normalizeDragRegion,
+  parsePercentRegions,
+  replacePercentRegion,
+  resizePercentRegion,
+  ratioFromOption
+} from "./regions";
 
 describe("region helpers", () => {
   it("parses and formats percent regions", () => {
@@ -34,5 +44,34 @@ describe("region helpers", () => {
       width: 40,
       height: 20
     });
+  });
+
+  it("moves regions while keeping them inside the image", () => {
+    expect(movePercentRegion({ x: 80, y: 90, width: 30, height: 20 }, 10, 10)).toEqual({
+      x: 70,
+      y: 80,
+      width: 30,
+      height: 20
+    });
+  });
+
+  it("resizes regions from handles", () => {
+    expect(resizePercentRegion({ x: 20, y: 20, width: 40, height: 30 }, "se", 10, 5)).toEqual({
+      x: 20,
+      y: 20,
+      width: 50,
+      height: 35
+    });
+    expect(resizePercentRegion({ x: 20, y: 20, width: 40, height: 30 }, "nw", 10, 5)).toEqual({
+      x: 30,
+      y: 25,
+      width: 30,
+      height: 25
+    });
+  });
+
+  it("replaces and serializes region lists", () => {
+    const regions = replacePercentRegion([{ x: 0, y: 0, width: 10, height: 10 }], 0, { x: 5, y: 6, width: 20, height: 30 });
+    expect(formatPercentRegions(regions)).toBe("5.0%,6.0%,20.0%,30.0%");
   });
 });

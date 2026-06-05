@@ -23,6 +23,15 @@ export type PageSize = {
   height: number;
 };
 
+export type PageViewport = {
+  width: number;
+  height: number;
+  pdfWidth: number;
+  pdfHeight: number;
+  rotation: number;
+  transform: [number, number, number, number, number, number];
+};
+
 export type PreviewPoint = {
   left: number;
   top: number;
@@ -38,6 +47,8 @@ export type PreviewPixelRect = {
 };
 
 export const DEFAULT_SIGNATURE_COLORS = ["#1f2a24", "#e23a3a", "#126c68", "#2e5aac"];
+const MIN_FIELD_WIDTH = 36;
+const MIN_FIELD_HEIGHT = 24;
 
 export function placementToPreviewRect(placement: SignaturePlacement, page: PageSize): PreviewPoint {
   return {
@@ -57,12 +68,33 @@ export function pointerToPdfPoint(clientX: number, clientY: number, rect: DOMRec
   };
 }
 
+export function pointerToPdfPointInViewport(clientX: number, clientY: number, rect: DOMRect, viewport: PageViewport): { x: number; y: number } {
+  const viewportX = ((clientX - rect.left) / rect.width) * viewport.width;
+  const viewportY = ((clientY - rect.top) / rect.height) * viewport.height;
+  const point = applyInverseTransform(viewportX, viewportY, viewport.transform);
+  return clampPdfPoint(point, viewport);
+}
+
 export function placementToPreviewPixels(placement: SignaturePlacement, page: PageSize, preview: PageSize): PreviewPixelRect {
   return {
     x: (placement.x / page.width) * preview.width,
     y: ((page.height - placement.y - placement.height) / page.height) * preview.height,
     width: (placement.width / page.width) * preview.width,
     height: (placement.height / page.height) * preview.height
+  };
+}
+
+export function placementToPreviewPixelsInViewport(
+  placement: SignaturePlacement,
+  viewport: PageViewport,
+  preview: PageSize
+): PreviewPixelRect {
+  const bounds = pdfRectToViewportBounds(placement, viewport);
+  return {
+    x: (bounds.x / viewport.width) * preview.width,
+    y: (bounds.y / viewport.height) * preview.height,
+    width: (bounds.width / viewport.width) * preview.width,
+    height: (bounds.height / viewport.height) * preview.height
   };
 }
 
@@ -84,6 +116,38 @@ export function previewRectToPlacement(
   }, page);
 }
 
+export function previewRectToPlacementInViewport(
+  placement: SignaturePlacement,
+  rect: PreviewPixelRect,
+  viewport: PageViewport,
+  preview: PageSize
+): SignaturePlacement {
+  if (preview.width <= 0 || preview.height <= 0 || viewport.width <= 0 || viewport.height <= 0) return placement;
+  const scaleX = viewport.width / preview.width;
+  const scaleY = viewport.height / preview.height;
+  const viewportCorners = [
+    { x: rect.x * scaleX, y: rect.y * scaleY },
+    { x: (rect.x + rect.width) * scaleX, y: rect.y * scaleY },
+    { x: rect.x * scaleX, y: (rect.y + rect.height) * scaleY },
+    { x: (rect.x + rect.width) * scaleX, y: (rect.y + rect.height) * scaleY }
+  ];
+  const pdfCorners = viewportCorners.map((point) => applyInverseTransform(point.x, point.y, viewport.transform));
+  const xs = pdfCorners.map((point) => point.x);
+  const ys = pdfCorners.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  return clampPlacement({
+    ...placement,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  }, pageSizeFromViewport(viewport));
+}
+
 export function previewDeltaToPdfDelta(deltaX: number, deltaY: number, rect: DOMRect, page: PageSize): { dx: number; dy: number } {
   return {
     dx: (deltaX / rect.width) * page.width,
@@ -91,9 +155,57 @@ export function previewDeltaToPdfDelta(deltaX: number, deltaY: number, rect: DOM
   };
 }
 
+export function previewDeltaToPdfDeltaInViewport(
+  deltaX: number,
+  deltaY: number,
+  viewport: PageViewport,
+  preview: PageSize
+): { dx: number; dy: number } {
+  if (preview.width <= 0 || preview.height <= 0 || viewport.width <= 0 || viewport.height <= 0) {
+    return { dx: 0, dy: 0 };
+  }
+  const viewportDeltaX = (deltaX / preview.width) * viewport.width;
+  const viewportDeltaY = (deltaY / preview.height) * viewport.height;
+  const origin = applyInverseTransform(0, 0, viewport.transform);
+  const moved = applyInverseTransform(viewportDeltaX, viewportDeltaY, viewport.transform);
+
+  return {
+    dx: moved.x - origin.x,
+    dy: moved.y - origin.y
+  };
+}
+
+export function pageSizeFromViewport(viewport: PageViewport): PageSize {
+  return { width: viewport.pdfWidth, height: viewport.pdfHeight };
+}
+
+export function copyPlacementToViewportPage(
+  placement: SignaturePlacement,
+  sourceViewport: PageViewport,
+  targetViewport: PageViewport,
+  pageIndex: number
+): SignaturePlacement {
+  const sourceBounds = pdfRectToViewportBounds(placement, sourceViewport);
+  const sourceWidth = Math.max(1, sourceViewport.width);
+  const sourceHeight = Math.max(1, sourceViewport.height);
+  const targetRect = {
+    x: (sourceBounds.x / sourceWidth) * targetViewport.width,
+    y: (sourceBounds.y / sourceHeight) * targetViewport.height,
+    width: (sourceBounds.width / sourceWidth) * targetViewport.width,
+    height: (sourceBounds.height / sourceHeight) * targetViewport.height
+  };
+
+  return previewRectToPlacementInViewport(
+    { ...placement, pageIndex },
+    targetRect,
+    targetViewport,
+    { width: targetViewport.width, height: targetViewport.height }
+  );
+}
+
 export function clampPlacement(placement: SignaturePlacement, page: PageSize): SignaturePlacement {
-  const width = clampNumber(placement.width, 24, page.width);
-  const height = clampNumber(placement.height, 14, page.height);
+  const width = clampNumber(placement.width, MIN_FIELD_WIDTH, page.width);
+  const height = clampNumber(placement.height, MIN_FIELD_HEIGHT, page.height);
   return {
     ...placement,
     width,
@@ -179,13 +291,13 @@ export function defaultSizeForKind(kind: SignatureFieldKind): { width: number; h
     case "signature":
       return { width: 180, height: 64 };
     case "initials":
-      return { width: 88, height: 44 };
+      return { width: 96, height: 48 };
     case "date":
-      return { width: 104, height: 28 };
+      return { width: 128, height: 34 };
     case "name":
-      return { width: 140, height: 30 };
+      return { width: 160, height: 36 };
     case "text":
-      return { width: 160, height: 34 };
+      return { width: 190, height: 38 };
   }
 }
 
@@ -218,6 +330,59 @@ function normalizeKind(value: unknown): SignatureFieldKind | undefined {
 
 function normalizeFontStyle(value: unknown): SignatureFontStyle {
   return value === "formal" || value === "classic" || value === "plain" ? value : "script";
+}
+
+function pdfRectToViewportBounds(placement: SignaturePlacement, viewport: PageViewport): PreviewPixelRect {
+  const points = [
+    applyTransform(placement.x, placement.y, viewport.transform),
+    applyTransform(placement.x + placement.width, placement.y, viewport.transform),
+    applyTransform(placement.x, placement.y + placement.height, viewport.transform),
+    applyTransform(placement.x + placement.width, placement.y + placement.height, viewport.transform)
+  ];
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  };
+}
+
+function applyTransform(
+  x: number,
+  y: number,
+  [a, b, c, d, e, f]: PageViewport["transform"]
+): { x: number; y: number } {
+  return {
+    x: x * a + y * c + e,
+    y: x * b + y * d + f
+  };
+}
+
+function applyInverseTransform(
+  x: number,
+  y: number,
+  [a, b, c, d, e, f]: PageViewport["transform"]
+): { x: number; y: number } {
+  const determinant = a * d - b * c;
+  if (determinant === 0) return { x: 0, y: 0 };
+  return {
+    x: (x * d - y * c + c * f - e * d) / determinant,
+    y: (-x * b + y * a + e * b - f * a) / determinant
+  };
+}
+
+function clampPdfPoint(point: { x: number; y: number }, viewport: PageViewport): { x: number; y: number } {
+  return {
+    x: clampNumber(point.x, 0, viewport.pdfWidth),
+    y: clampNumber(point.y, 0, viewport.pdfHeight)
+  };
 }
 
 function toNumber(value: unknown, fallback: number): number {

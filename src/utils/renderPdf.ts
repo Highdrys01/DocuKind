@@ -1,6 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { fileToUint8Array } from "./file";
+import type { PageViewport } from "./signatures";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -8,12 +9,27 @@ export type RenderedPage = {
   canvas: HTMLCanvasElement;
   width: number;
   height: number;
+  viewport: PageViewport;
 };
 
 export async function getRenderedPageCount(file: File): Promise<number> {
   const pdf = await pdfjsLib.getDocument({ data: await fileToUint8Array(file) }).promise;
   try {
     return pdf.numPages;
+  } finally {
+    await pdf.destroy();
+  }
+}
+
+export async function getPdfPageViewports(file: File, scale = 1): Promise<PageViewport[]> {
+  const pdf = await pdfjsLib.getDocument({ data: await fileToUint8Array(file) }).promise;
+  try {
+    const viewports: PageViewport[] = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      viewports.push(toPageViewport(page.getViewport({ scale })));
+    }
+    return viewports;
   } finally {
     await pdf.destroy();
   }
@@ -39,7 +55,8 @@ export async function renderPdfPage(file: File, pageNumber: number, scale = 0.45
     return {
       canvas,
       width: canvas.width,
-      height: canvas.height
+      height: canvas.height,
+      viewport: toPageViewport(viewport)
     };
   } finally {
     await pdf.destroy();
@@ -75,4 +92,26 @@ export function canvasToBlob(
       quality
     );
   });
+}
+
+type PdfJsViewport = {
+  width: number;
+  height: number;
+  rotation: number;
+  transform: number[];
+  rawDims?: {
+    pageWidth?: number;
+    pageHeight?: number;
+  };
+};
+
+function toPageViewport(viewport: PdfJsViewport): PageViewport {
+  return {
+    width: viewport.width,
+    height: viewport.height,
+    pdfWidth: viewport.rawDims?.pageWidth ?? viewport.width,
+    pdfHeight: viewport.rawDims?.pageHeight ?? viewport.height,
+    rotation: viewport.rotation,
+    transform: viewport.transform.slice(0, 6) as PageViewport["transform"]
+  };
 }

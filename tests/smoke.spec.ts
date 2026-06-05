@@ -156,22 +156,35 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
   await clickTool(page, /Sign PDF/);
   await expect(page.getByRole("heading", { name: "Sign PDF" })).toBeVisible();
 
-  const source = await makePdf("sign-source");
+  const source = await makeMultiPagePdf([
+    ["sign-source-one", [360, 240]],
+    ["sign-source-two", [220, 160]]
+  ]);
   await page.getByTestId("file-input").setInputFiles({ name: "sign-source.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
   const canvas = page.locator("canvas.signature-page-canvas").first();
   await expect(canvas).toBeVisible();
   await expect.poll(async () => canvas.evaluate(isCanvasNonBlank)).toBe(true);
+  await expect(page.getByText(/Click the document to place it/)).toBeVisible();
 
   await page.getByLabel("Full name").fill("Ada Lovelace");
   await page.getByLabel("Initials").fill("AL");
   await page.getByLabel("Custom text").fill("Approved locally");
+  await page.getByRole("button", { name: "Upload" }).click();
+  await page.locator(".upload-inline input").setInputFiles({
+    name: "signature.png",
+    mimeType: "application/octet-stream",
+    buffer: await makePngFixture(page, 64, 24)
+  });
+  await expect(page.getByText("Signature image ready")).toBeVisible();
   if (isMobile) {
     await chooseAndPlaceField(page, "signature", 0.32, 0.72);
+    await page.getByRole("button", { name: "Type" }).click();
     await chooseAndPlaceField(page, "name", 0.58, 0.72);
     await chooseAndPlaceField(page, "date", 0.58, 0.84);
     await chooseAndPlaceField(page, "text", 0.36, 0.84);
   } else {
     await dragPaletteFieldToPreview(page, "signature", 0.32, 0.72);
+    await page.getByRole("button", { name: "Type" }).click();
     await dragPaletteFieldToPreview(page, "name", 0.58, 0.72);
     await dragPaletteFieldToPreview(page, "date", 0.58, 0.84);
     await dragPaletteFieldToPreview(page, "text", 0.36, 0.84);
@@ -179,6 +192,10 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
   await page.getByTestId("palette-initials").click();
   await placeFieldOnPreview(page, 0.72, 0.72);
   await expect(page.locator(".signature-field-box")).toHaveCount(5);
+  const dateLabelBox = await page.locator('.signature-field-box[data-kind="date"] .signature-field-label').first().boundingBox();
+  const dateContentBox = await page.locator('.signature-field-box[data-kind="date"] .signature-field-content').first().boundingBox();
+  if (!dateLabelBox || !dateContentBox) throw new Error("Date field label/content did not render.");
+  expect(dateLabelBox.y + dateLabelBox.height).toBeLessThanOrEqual(dateContentBox.y + 1);
 
   const field = page.locator(".signature-field-box").first();
   const fieldBox = await field.boundingBox();
@@ -193,13 +210,17 @@ test("places and exports a visual PDF signature", async ({ page, isMobile }) => 
   await page.mouse.down();
   await page.mouse.move(movedBox.x + movedBox.width + 24, movedBox.y + movedBox.height + 12);
   await page.mouse.up();
+  await page.getByRole("heading", { name: "Selected Field" }).scrollIntoViewIfNeeded();
+  await clickCenterVerifiedButton(page, "Copy");
+  await page.getByRole("button", { name: "Next page" }).click();
+  await expect(page.locator(".signature-field-box")).toHaveCount(1);
 
   await page.getByRole("button", { name: /^Sign PDF$/ }).click();
   await expect(page.getByText("sign-source-signed.pdf")).toBeVisible();
 
   const signedPdf = await readFile(await downloadFirst(page));
   const signedDoc = await PDFDocument.load(signedPdf);
-  expect(signedDoc.getPageCount()).toBe(1);
+  expect(signedDoc.getPageCount()).toBe(2);
 });
 
 test("resizes and crops images with downloadable outputs", async ({ page }) => {
@@ -222,6 +243,17 @@ test("resizes and crops images with downloadable outputs", async ({ page }) => {
   await page.getByRole("button", { name: /Image Tools/ }).click();
   await page.getByRole("button", { name: /Crop Image/ }).click();
   await page.getByTestId("file-input").setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: image });
+  await expect(page.locator(".region-box").first()).toBeVisible();
+  await page.locator(".region-canvas").scrollIntoViewIfNeeded();
+  const cropInput = page.getByLabel("Selected crop");
+  const defaultCrop = await cropInput.inputValue();
+  const cropBox = await page.locator(".region-box").first().boundingBox();
+  if (!cropBox) throw new Error("Crop region did not render.");
+  await page.mouse.move(cropBox.x + cropBox.width / 2, cropBox.y + cropBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cropBox.x + cropBox.width / 2 + 14, cropBox.y + cropBox.height / 2 + 8);
+  await page.mouse.up();
+  await expect.poll(async () => cropInput.inputValue()).not.toBe(defaultCrop);
   await page.getByLabel("Selected crop").fill("25%,20%,50%,50%");
   await page.getByRole("button", { name: /Run Crop Image/ }).click();
   await expect(page.getByText("fixture-crop-80x50.png")).toBeVisible();
@@ -445,6 +477,19 @@ async function dragPaletteFieldToPreview(page: import("@playwright/test").Page, 
 async function chooseAndPlaceField(page: import("@playwright/test").Page, kind: string, xRatio: number, yRatio: number): Promise<void> {
   await page.getByTestId(`palette-${kind}`).click();
   await placeFieldOnPreview(page, xRatio, yRatio);
+}
+
+async function clickCenterVerifiedButton(page: import("@playwright/test").Page, name: string): Promise<void> {
+  const button = page.getByRole("button", { name, exact: true });
+  await button.scrollIntoViewIfNeeded();
+  await expect.poll(async () => button.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return hit === element || element.contains(hit);
+  })).toBe(true);
+  const box = await button.boundingBox();
+  if (!box) throw new Error(`${name} button did not have a bounding box.`);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
 function isCanvasNonBlank(element: HTMLCanvasElement): boolean {

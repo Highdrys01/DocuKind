@@ -1004,10 +1004,11 @@ a {
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  height: 32px;
+  height: 42px;
   justify-content: center;
+  min-height: 42px;
   padding: 0;
-  width: 32px;
+  width: 42px;
 }
 
 .icon-button:hover,
@@ -1105,10 +1106,13 @@ a {
 }
 
 .button {
+  align-items: center;
   background: var(--panel-strong);
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
   font-weight: 800;
   justify-content: center;
   min-height: 42px;
@@ -1262,6 +1266,7 @@ a {
   display: grid;
   gap: 12px;
   padding-bottom: 16px;
+  scroll-margin-block: 96px;
 }
 
 .sign-palette section:last-child {
@@ -1316,6 +1321,23 @@ a {
   min-height: 48px;
 }
 
+.signature-placement-help {
+  align-items: center;
+  background: var(--panel-strong);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.signature-placement-help strong {
+  color: var(--ink);
+}
+
 .signature-page-stage {
   background: #e8ebe4;
   display: grid;
@@ -1352,21 +1374,18 @@ a {
 }
 
 .signature-field-box {
-  align-items: center;
-  background: rgba(217, 242, 116, 0.16);
+  background: transparent;
   border: 1px dashed var(--blue);
   border-radius: 4px;
+  container-type: size;
   cursor: move;
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
-  padding: 4px;
+  overflow: visible;
+  padding: 0;
   touch-action: none;
   user-select: none;
 }
 
 .signature-field-box.selected {
-  background: var(--suite-soft);
   border-color: var(--suite-accent);
   box-shadow: 0 0 0 2px var(--suite-soft-strong);
 }
@@ -1376,30 +1395,60 @@ a {
   outline-offset: 2px;
 }
 
-.signature-field-box img {
+.signature-field-content {
+  align-items: center;
+  background: rgba(217, 242, 116, 0.16);
+  border-radius: 3px;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3px 6px;
+  width: 100%;
+}
+
+.signature-field-box.selected .signature-field-content {
+  background: var(--suite-soft);
+}
+
+.signature-field-content.text {
+  justify-content: flex-start;
+}
+
+.signature-field-content img {
   height: 100%;
   max-width: 100%;
   object-fit: contain;
 }
 
-.signature-field-box strong {
+.signature-field-content strong {
   color: var(--ink);
-  font-size: 0.95rem;
+  display: block;
+  font-size: clamp(10px, 52cqh, 18px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
 }
 
 .signature-field-label {
   background: var(--suite-accent);
   border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(31, 42, 36, 0.18);
   color: white;
   font-size: 0.62rem;
   font-weight: 800;
-  left: 3px;
-  padding: 1px 4px;
+  left: -1px;
+  line-height: 1;
+  padding: 5px 7px;
+  pointer-events: none;
   position: absolute;
-  top: 3px;
+  top: -25px;
+  z-index: 2;
+}
+
+.signature-field-box:not(.selected):not(:hover):not(:focus-visible) .signature-field-label {
+  opacity: 0.72;
 }
 
 .signature-resize-handle {
@@ -1418,6 +1467,15 @@ a {
 .field-actions-row {
   display: grid;
   gap: 8px;
+}
+
+.field-actions-row {
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+}
+
+.field-actions-row .button {
+  min-width: 0;
+  width: 100%;
 }
 
 .signature-style-list {
@@ -1590,6 +1648,12 @@ a {
   padding-top: 16px;
 }
 
+.region-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .region-canvas {
   background: var(--paper);
   border: 1px solid var(--line);
@@ -1614,12 +1678,100 @@ a {
   background: rgba(217, 242, 116, 0.22);
   border: 2px solid var(--lime);
   box-shadow: 0 0 0 1px rgba(31, 42, 36, 0.4);
+  cursor: move;
+  padding: 0;
   position: absolute;
+  touch-action: none;
+  z-index: 2;
 }
 
 .region-box.active {
+  background: rgba(217, 242, 116, 0.28);
+  border-color: var(--suite-accent);
+}
+
+.region-box.drawing {
   background: rgba(240, 93, 94, 0.18);
   border-color: var(--coral);
+  pointer-events: none;
+}
+
+.region-handle {
+  background: var(--panel);
+  border: 2px solid var(--suite-accent);
+  border-radius: 999px;
+  height: 14px;
+  position: absolute;
+  width: 14px;
+  z-index: 3;
+}
+
+.region-handle.nw {
+  cursor: nwse-resize;
+  left: -8px;
+  top: -8px;
+}
+
+.region-handle.ne {
+  cursor: nesw-resize;
+  right: -8px;
+  top: -8px;
+}
+
+.region-handle.sw {
+  bottom: -8px;
+  cursor: nesw-resize;
+  left: -8px;
+}
+
+.region-handle.se {
+  bottom: -8px;
+  cursor: nwse-resize;
+  right: -8px;
+}
+
+.region-details {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.region-details .field {
+  gap: 4px;
+}
+
+.region-details .field span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.region-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.region-list button {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  height: 30px;
+  min-width: 30px;
+}
+
+.region-list button.active {
+  background: var(--suite-accent);
+  border-color: var(--suite-accent);
+  color: white;
 }
 
 .tool-tagline {
@@ -1812,6 +1964,10 @@ a {
 
   .metric-strip {
     justify-content: flex-start;
+  }
+
+  .field-actions-row {
+    grid-template-columns: 1fr;
   }
 
   .tool-card,

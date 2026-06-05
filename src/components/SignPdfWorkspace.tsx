@@ -20,12 +20,16 @@ import { renderPdfPage, type RenderedPage } from "../utils/renderPdf";
 import { navigate } from "../utils/router";
 import {
   clampPlacement,
+  copyPlacementToViewportPage,
   defaultSizeForKind,
   DEFAULT_SIGNATURE_COLORS,
-  placementToPreviewPixels,
-  pointerToPdfPoint,
-  previewRectToPlacement,
+  pageSizeFromViewport,
+  placementToPreviewPixelsInViewport,
+  previewDeltaToPdfDeltaInViewport,
+  pointerToPdfPointInViewport,
+  previewRectToPlacementInViewport,
   type PageSize,
+  type PageViewport,
   type SignatureFieldKind,
   type SignatureFontStyle,
   type SignaturePlacement
@@ -39,6 +43,7 @@ type SignPdfWorkspaceProps = {
 };
 
 const PREVIEW_SCALE = 1.35;
+const MAX_SIGNATURE_IMAGE_BYTES = 8 * 1024 * 1024;
 const styleChoices: Array<{ id: SignatureFontStyle; label: string; font: string }> = [
   { id: "script", label: "Script", font: '"Brush Script MT", "Segoe Script", cursive' },
   { id: "formal", label: "Formal", font: '"Snell Roundhand", "Segoe Script", cursive' },
@@ -51,6 +56,7 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [preview, setPreview] = useState<RenderedPage | null>(null);
+  const [pageViewports, setPageViewports] = useState<PageViewport[]>([]);
   const [placements, setPlacements] = useState<SignaturePlacement[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [pendingKind, setPendingKind] = useState<SignatureFieldKind>("signature");
@@ -81,13 +87,12 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   );
 
   const file = files[0];
-  const pageSize = useMemo<PageSize | null>(() => {
-    if (!preview) return null;
-    return { width: preview.width / PREVIEW_SCALE, height: preview.height / PREVIEW_SCALE };
-  }, [preview]);
+  const currentViewport = preview?.viewport ?? null;
+  const pageSizes = useMemo(() => pageViewports.map(pageSizeFromViewport), [pageViewports]);
+  const pageSize = currentViewport ? pageSizeFromViewport(currentViewport) : null;
   const { isOver: isPageDropActive, setNodeRef: setDroppableNodeRef } = useDroppable({
     id: "signature-page",
-    disabled: !pageSize
+    disabled: !currentViewport
   });
   const currentPlacements = placements.filter((placement) => placement.pageIndex === pageNumber - 1);
   const selectedPlacement = placements.find((placement) => placement.id === selectedId);
@@ -96,6 +101,7 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     setPageNumber(1);
     setPageCount(0);
     setPreview(null);
+    setPageViewports([]);
     setPlacements([]);
     setSelectedId("");
     setResults([]);
@@ -133,17 +139,23 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     if (!file) return;
     let cancelled = false;
 
-    async function countPages() {
+    async function loadPageMetadata() {
       try {
-        const { getRenderedPageCount } = await import("../utils/renderPdf");
-        const count = await getRenderedPageCount(file);
-        if (!cancelled) setPageCount(count);
+        const { getPdfPageViewports } = await import("../utils/renderPdf");
+        const viewports = await getPdfPageViewports(file);
+        if (!cancelled) {
+          setPageViewports(viewports);
+          setPageCount(viewports.length);
+        }
       } catch {
-        if (!cancelled) setPageCount(1);
+        if (!cancelled) {
+          setPageViewports([]);
+          setPageCount(1);
+        }
       }
     }
 
-    void countPages();
+    void loadPageMetadata();
     return () => {
       cancelled = true;
     };
@@ -182,10 +194,12 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     context.lineCap = "round";
     context.lineJoin = "round";
     context.strokeStyle = color;
+    setDrawnImageData("");
   }, [color]);
 
   const addPlacement = (kind: SignatureFieldKind, point: { x: number; y: number }) => {
     if (!pageSize) return;
+    if (!canPlaceField(kind)) return;
     const base = createPlacement(kind);
     const centered = {
       ...base,
@@ -221,7 +235,7 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
   const handleDragEnd = (event: DragEndEvent) => {
     const kind = event.active.data.current?.kind;
     setActiveDragKind(null);
-    if (!isSignatureFieldKind(kind) || !overlayRef.current || !pageSize) return;
+    if (!isSignatureFieldKind(kind) || !overlayRef.current || !currentViewport) return;
 
     const dragRect = event.active.rect.current.translated ?? event.active.rect.current.initial;
     if (!dragRect) return;
@@ -240,25 +254,26 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     );
     if (!droppedOnPage) return;
 
-    const point = pointerToPdfPoint(
+    const point = pointerToPdfPointInViewport(
       center.x,
       center.y,
       overlayRect,
-      pageSize
+      currentViewport
     );
     addPlacement(kind, point);
   };
 
   const updatePlacementFromPreviewRect = (id: string, rect: { x: number; y: number; width: number; height: number }) => {
-    if (!pageSize || overlaySize.width <= 0 || overlaySize.height <= 0) return;
-    updatePlacement(id, (current) => previewRectToPlacement(current, rect, pageSize, overlaySize));
+    if (!currentViewport || overlaySize.width <= 0 || overlaySize.height <= 0) return;
+    updatePlacement(id, (current) => previewRectToPlacementInViewport(current, rect, currentViewport, overlaySize));
   };
 
   const updatePlacement = (id: string, updater: (placement: SignaturePlacement) => SignaturePlacement) => {
-    if (!pageSize) return;
     setPlacements((current) => current.map((placement) => {
       if (placement.id !== id) return placement;
-      return clampPlacement(updater(placement), pageSize);
+      const next = updater(placement);
+      const targetSize = pageSizes[next.pageIndex] ?? pageSizes[placement.pageIndex] ?? pageSize;
+      return targetSize ? clampPlacement(next, targetSize) : next;
     }));
     setResults([]);
   };
@@ -348,6 +363,35 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
     return renderSignatureTextImage(value, fontStyle, color, kind);
   };
 
+  const finishDrawing = (canvas: HTMLCanvasElement, pointerId: number) => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+    setDrawnImageData(canvasHasInk(canvas) ? canvas.toDataURL("image/png") : "");
+  };
+
+  const canPlaceField = (kind: SignatureFieldKind): boolean => {
+    const value = valueForKind(kind);
+    if ((kind === "signature" || kind === "initials") && signatureMode === "draw" && !drawnImageData) {
+      setError(`Draw ${kind === "signature" ? "a signature" : "initials"} before placing this field.`);
+      return false;
+    }
+    if ((kind === "signature" || kind === "initials") && signatureMode === "upload" && !uploadedImageData) {
+      setError("Upload a PNG or JPG signature image before placing this field.");
+      return false;
+    }
+    if ((kind === "signature" || kind === "initials") && signatureMode === "type" && !value) {
+      setError(`Enter ${kind === "signature" ? "your full name" : "initials"} before placing this field.`);
+      return false;
+    }
+    if (kind !== "date" && kind !== "signature" && kind !== "initials" && !value) {
+      setError(`Enter ${kind === "text" ? "custom text" : "a value"} before placing this field.`);
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
   const copySelectedToPages = () => {
     if (!selectedPlacement || pageCount < 1) return;
     let indexes: number[];
@@ -358,14 +402,62 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
       return;
     }
 
+    const sourceViewport = pageViewports[selectedPlacement.pageIndex];
+    if (!sourceViewport) {
+      setError("Page sizes are still loading. Try again in a moment.");
+      return;
+    }
+
     const clones = indexes
       .filter((index) => index !== selectedPlacement.pageIndex)
-      .map((pageIndex) => ({
-        ...selectedPlacement,
-        id: `${selectedPlacement.kind}-${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${pageIndex}`}`,
-        pageIndex
-      }));
+      .flatMap((pageIndex) => {
+        const targetViewport = pageViewports[pageIndex];
+        if (!targetViewport) return [];
+        return [{
+          ...copyPlacementToViewportPage(selectedPlacement, sourceViewport, targetViewport, pageIndex),
+          id: `${selectedPlacement.kind}-${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${pageIndex}`}`
+        }];
+      });
+    if (clones.length === 0) {
+      setError("No other pages matched that page range.");
+      return;
+    }
     setPlacements((current) => [...current, ...clones]);
+    setResults([]);
+    setError("");
+  };
+
+  const duplicateSelectedPlacement = () => {
+    if (!selectedPlacement) return;
+    const targetSize = pageSizes[selectedPlacement.pageIndex] ?? pageSize;
+    const duplicate = {
+      ...selectedPlacement,
+      id: `${selectedPlacement.kind}-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
+      x: selectedPlacement.x + 12,
+      y: selectedPlacement.y - 12
+    };
+    const next = targetSize ? clampPlacement(duplicate, targetSize) : duplicate;
+    setPlacements((current) => [...current, next]);
+    setSelectedId(next.id);
+    setResults([]);
+  };
+
+  const nudgePlacementVisually = (id: string, visualDeltaX: number, visualDeltaY: number, previewSize?: PageSize) => {
+    updatePlacement(id, (current) => {
+      const viewport = pageViewports[current.pageIndex];
+      if (!viewport) return current;
+      const delta = previewDeltaToPdfDeltaInViewport(
+        visualDeltaX,
+        visualDeltaY,
+        viewport,
+        previewSize ?? { width: viewport.width, height: viewport.height }
+      );
+      return {
+        ...current,
+        x: current.x + delta.dx,
+        y: current.y + delta.dy
+      };
+    });
   };
 
   return (
@@ -411,16 +503,22 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                       <Icon name="ArrowDown" size={16} />
                     </button>
                   </div>
+                  <div className="signature-placement-help">
+                    <Icon name="PenLine" size={16} />
+                    <span>
+                      Selected: <strong>{labelForKind(pendingKind)}</strong>. Click the document to place it, or drag a field from the right panel.
+                    </span>
+                  </div>
                   <div className="signature-page-stage">
                     <div className="signature-page-stack">
                       <div ref={canvasHostRef} className="signature-canvas-host" />
-                      {pageSize && (
+                      {currentViewport && (
                         <div
                           ref={setOverlayNode}
                           className={`signature-overlay ${isPageDropActive ? "drop-active" : ""}`}
                           onPointerDown={(event) => {
-                            if (event.target !== event.currentTarget || !pageSize) return;
-                            const point = pointerToPdfPoint(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), pageSize);
+                            if (event.target !== event.currentTarget) return;
+                            const point = pointerToPdfPointInViewport(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), currentViewport);
                             addPlacement(pendingKind, point);
                           }}
                         >
@@ -428,12 +526,12 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                             <SignatureBox
                               key={placement.id}
                               placement={placement}
-                              pageSize={pageSize}
+                              viewport={currentViewport}
                               previewSize={overlaySize}
                               selected={placement.id === selectedId}
                               onSelect={() => setSelectedId(placement.id)}
                               onPreviewRectChange={(rect) => updatePlacementFromPreviewRect(placement.id, rect)}
-                              onKeyNudge={(dx, dy) => updatePlacement(placement.id, (current) => ({ ...current, x: current.x + dx, y: current.y + dy }))}
+                              onKeyNudge={(dx, dy) => nudgePlacementVisually(placement.id, dx, dy, overlaySize)}
                             />
                           ))}
                         </div>
@@ -521,9 +619,10 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                     context.stroke();
                   }}
                   onPointerUp={(event) => {
-                    drawingRef.current = false;
-                    setDrawnImageData(event.currentTarget.toDataURL("image/png"));
+                    finishDrawing(event.currentTarget, event.pointerId);
                   }}
+                  onPointerCancel={(event) => finishDrawing(event.currentTarget, event.pointerId)}
+                  onPointerLeave={(event) => finishDrawing(event.currentTarget, event.pointerId)}
                 />
                 <button className="button" type="button" onClick={() => {
                   const canvas = drawCanvasRef.current;
@@ -541,7 +640,15 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                   accept="image/png,image/jpeg,.png,.jpg,.jpeg"
                   onChange={async (event) => {
                     const upload = event.currentTarget.files?.[0];
-                    if (upload) setUploadedImageData(await fileToDataUrl(upload));
+                    if (upload) {
+                      try {
+                        setUploadedImageData(await fileToDataUrl(upload));
+                        setError("");
+                      } catch (caught) {
+                        setUploadedImageData("");
+                        setError(caught instanceof Error ? caught.message : "Could not read signature image.");
+                      }
+                    }
                     event.currentTarget.value = "";
                   }}
                 />
@@ -599,25 +706,24 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
                 }} />
               </label>
               <div className="field-actions-row">
-                <button className="button" type="button" onClick={() => updatePlacement(selectedPlacement.id, (current) => ({ ...current, x: current.x - 2 }))}>Left</button>
-                <button className="button" type="button" onClick={() => updatePlacement(selectedPlacement.id, (current) => ({ ...current, x: current.x + 2 }))}>Right</button>
-                <button className="button" type="button" onClick={() => updatePlacement(selectedPlacement.id, (current) => ({ ...current, y: current.y + 2 }))}>Up</button>
-                <button className="button" type="button" onClick={() => updatePlacement(selectedPlacement.id, (current) => ({ ...current, y: current.y - 2 }))}>Down</button>
+                <button className="button" type="button" onClick={() => nudgePlacementVisually(selectedPlacement.id, -2, 0)}>Left</button>
+                <button className="button" type="button" onClick={() => nudgePlacementVisually(selectedPlacement.id, 2, 0)}>Right</button>
+                <button className="button" type="button" onClick={() => nudgePlacementVisually(selectedPlacement.id, 0, -2)}>Up</button>
+                <button className="button" type="button" onClick={() => nudgePlacementVisually(selectedPlacement.id, 0, 2)}>Down</button>
               </div>
               <label className="field">
                 <span>Copy to pages</span>
                 <input value={copyPages} placeholder="all or 1,3-5" onChange={(event) => setCopyPages(event.currentTarget.value)} />
               </label>
               <div className="field-actions-row">
-                <button className="button" type="button" onClick={() => {
-                  setPlacements((current) => [...current, { ...selectedPlacement, id: `${selectedPlacement.kind}-${Date.now()}`, x: selectedPlacement.x + 12, y: selectedPlacement.y - 12 }]);
-                }}>
+                <button className="button" type="button" onClick={duplicateSelectedPlacement}>
                   Duplicate
                 </button>
                 <button className="button" type="button" onClick={copySelectedToPages}>Copy</button>
                 <button className="button" type="button" onClick={() => {
                   setPlacements((current) => current.filter((placement) => placement.id !== selectedPlacement.id));
                   setSelectedId("");
+                  setResults([]);
                 }}>
                   Delete
                 </button>
@@ -636,7 +742,7 @@ export function SignPdfWorkspace({ tool }: SignPdfWorkspaceProps) {
 
 function SignatureBox({
   placement,
-  pageSize,
+  viewport,
   previewSize,
   selected,
   onSelect,
@@ -644,25 +750,28 @@ function SignatureBox({
   onKeyNudge
 }: {
   placement: SignaturePlacement;
-  pageSize: PageSize;
+  viewport: PageViewport;
   previewSize: PageSize;
   selected: boolean;
   onSelect: () => void;
   onPreviewRectChange: (rect: { x: number; y: number; width: number; height: number }) => void;
   onKeyNudge: (dx: number, dy: number) => void;
 }) {
-  const rect = placementToPreviewPixels(placement, pageSize, previewSize);
+  const rect = placementToPreviewPixelsInViewport(placement, viewport, previewSize);
   if (previewSize.width <= 0 || previewSize.height <= 0) return null;
 
   return (
     <Rnd
       bounds="parent"
       className={`signature-field-box ${selected ? "selected" : ""}`}
-      minHeight={14}
-      minWidth={24}
+      data-kind={placement.kind}
+      data-testid={`placed-${placement.kind}`}
+      minHeight={24}
+      minWidth={36}
       position={{ x: rect.x, y: rect.y }}
       size={{ width: rect.width, height: rect.height }}
       enableResizing={selected}
+      aria-label={`${labelForKind(placement.kind)} field`}
       role="button"
       tabIndex={0}
       onDragStart={onSelect}
@@ -684,18 +793,32 @@ function SignatureBox({
       }}
       onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
         const amount = event.shiftKey ? 10 : 2;
-        if (event.key === "ArrowLeft") onKeyNudge(-amount, 0);
-        if (event.key === "ArrowRight") onKeyNudge(amount, 0);
-        if (event.key === "ArrowUp") onKeyNudge(0, amount);
-        if (event.key === "ArrowDown") onKeyNudge(0, -amount);
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          onKeyNudge(-amount, 0);
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          onKeyNudge(amount, 0);
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          onKeyNudge(0, -amount);
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          onKeyNudge(0, amount);
+        }
       }}
     >
-      <span className="signature-field-label">{labelForKind(placement.kind)}</span>
-      {placement.imageData ? (
-        <img src={placement.imageData} alt="" />
-      ) : (
-        <strong>{placement.value}</strong>
-      )}
+      <span className="signature-field-label" aria-hidden="true">{labelForKind(placement.kind)}</span>
+      <span className={`signature-field-content ${placement.imageData ? "image" : "text"}`}>
+        {placement.imageData ? (
+          <img src={placement.imageData} alt="" />
+        ) : (
+          <strong>{placement.value}</strong>
+        )}
+      </span>
     </Rnd>
   );
 }
@@ -820,10 +943,38 @@ function renderSignatureTextImage(value: string, style: SignatureFontStyle, colo
 }
 
 function fileToDataUrl(file: File): Promise<string> {
+  const mimeType = signatureImageMimeType(file);
+  if (!mimeType) {
+    return Promise.reject(new Error("Signature image must be a PNG or JPG."));
+  }
+  if (file.size > MAX_SIGNATURE_IMAGE_BYTES) {
+    return Promise.reject(new Error("Signature image is too large. Use a PNG or JPG under 8 MB."));
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      resolve(dataUrl.replace(/^data:[^;,]*;base64,/, `data:${mimeType};base64,`));
+    };
     reader.onerror = () => reject(new Error("Could not read signature image."));
     reader.readAsDataURL(file);
   });
+}
+
+function signatureImageMimeType(file: File): "image/png" | "image/jpeg" | undefined {
+  if (file.type === "image/png" || file.type === "image/jpeg") return file.type;
+  if (/\.png$/i.test(file.name)) return "image/png";
+  if (/\.jpe?g$/i.test(file.name)) return "image/jpeg";
+  return undefined;
+}
+
+function canvasHasInk(canvas: HTMLCanvasElement): boolean {
+  const context = canvas.getContext("2d");
+  if (!context) return false;
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] > 0) return true;
+  }
+  return false;
 }

@@ -258,6 +258,7 @@ function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
               mode="single"
               optionName="cropRegion"
               aspectRatio={String(options.aspectRatio ?? "free")}
+              defaultRegion={tool.id === "crop-image" ? { x: 10, y: 10, width: 80, height: 80 } : undefined}
               options={options}
               onChange={setOptions}
             />
