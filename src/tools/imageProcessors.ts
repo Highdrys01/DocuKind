@@ -94,6 +94,7 @@ export const compressImage: ToolProcessor = async (files, options, context) => {
         fit: settings.neverUpscale ? "inside" : "contain"
       });
       if (resized.width !== canvas.width || resized.height !== canvas.height) {
+        assertCanvasSize(resized.width, resized.height);
         canvas = await resizeCanvas(canvas, resized.width, resized.height);
         notes.push(`Resized from ${originalWidth}x${originalHeight}.`);
       }
@@ -151,7 +152,7 @@ export const resizeImage: ToolProcessor = async (files, options, context) => {
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Resizing image ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
     assertCanvasSize(canvas.width, canvas.height);
     const dimensions = calculateResize(canvas.width, canvas.height, {
       mode,
@@ -160,6 +161,7 @@ export const resizeImage: ToolProcessor = async (files, options, context) => {
       percent: numberOption(options.percent, 50),
       fit: normalizeFit(stringOption(options.fit, "inside"))
     });
+    assertCanvasSize(dimensions.width, dimensions.height);
     const resized = await resizeCanvas(canvas, dimensions.width, dimensions.height);
     results.push(
       await resultFromCanvas(
@@ -185,7 +187,8 @@ export const cropImage: ToolProcessor = async (files, options, context) => {
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Cropping image ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const region = regionFromOptions(canvas.width, canvas.height, options);
     const cropped = cropCanvas(canvas, region);
     results.push(
@@ -215,7 +218,8 @@ export const rotateFlipImage: ToolProcessor = async (files, options, context) =>
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Transforming image ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const transformed = transformCanvas(canvas, { rotate, flipX, flipY });
     results.push(
       await resultFromCanvas(
@@ -242,6 +246,7 @@ export const convertToJpg: ToolProcessor = async (files, options, context) => {
   for (const [index, file] of files.entries()) {
     setProgress(context, `Converting image ${index + 1} of ${files.length}`);
     const canvas = await imageFileToCanvas(file, background);
+    assertCanvasSize(canvas.width, canvas.height);
     results.push(await resultFromCanvas(file.name, "converted", canvas, "jpeg", quality, `Converted to JPG at ${canvas.width}x${canvas.height}.`));
   }
 
@@ -267,7 +272,8 @@ export const convertFromJpg: ToolProcessor = async (files, options, context) => 
     let targetHeight = 0;
     for (const [index, file] of files.entries()) {
       setProgress(context, `Preparing GIF frame ${index + 1} of ${files.length}`);
-      const canvas = await imageFileToCanvas(file, "#ffffff");
+      const canvas = await imageFileToCanvas(file);
+      assertCanvasSize(canvas.width, canvas.height);
       if (index === 0) {
         targetWidth = canvas.width;
         targetHeight = canvas.height;
@@ -280,7 +286,8 @@ export const convertFromJpg: ToolProcessor = async (files, options, context) => 
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Converting JPG ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     results.push(await resultFromCanvas(file.name, "converted", canvas, format, quality, `Converted from JPG to ${format.toUpperCase()}.`));
   }
 
@@ -299,7 +306,8 @@ export const watermarkImage: ToolProcessor = async (files, options, context) => 
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Watermarking image ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const watermarked = drawTextWatermark(canvas, {
       text,
       color: stringOption(options.color, "#ffffff"),
@@ -328,7 +336,8 @@ export const memeGenerator: ToolProcessor = async (files, options, context) => {
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Creating meme ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const meme = drawMemeText(canvas, {
       topText,
       bottomText,
@@ -351,7 +360,8 @@ export const photoEditor: ToolProcessor = async (files, options, context) => {
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `Editing image ${index + 1} of ${files.length}`);
-    let canvas = await imageFileToCanvas(file, "#ffffff");
+    let canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const cropRegionValue = stringOption(options.cropRegion, "").trim();
     if (cropRegionValue) {
       canvas = cropCanvas(canvas, parseRegion(cropRegionValue, canvas.width, canvas.height));
@@ -381,12 +391,13 @@ export const blurRedactImage: ToolProcessor = async (files, options, context) =>
 
   const outputFormat = normalizeFormat(stringOption(options.outputFormat, "png"));
   const quality = numberOption(options.quality, 0.9);
-  const mode = stringOption(options.mode, "blur") === "redact" ? "redact" : "blur";
+  const mode = stringOption(options.mode, "redact") === "blur" ? "blur" : "redact";
   const results: ToolResult[] = [];
 
   for (const [index, file] of files.entries()) {
     setProgress(context, `${mode === "blur" ? "Blurring" : "Redacting"} image ${index + 1} of ${files.length}`);
-    const canvas = await imageFileToCanvas(file, "#ffffff");
+    const canvas = await imageFileToCanvas(file);
+    assertCanvasSize(canvas.width, canvas.height);
     const regions = parseRegionList(regionText, canvas.width, canvas.height);
     const output = blurOrRedactRegions(canvas, regions, {
       mode,

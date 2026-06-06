@@ -26,6 +26,7 @@ import {
   type PageToolId,
   type WorkspacePage
 } from "../utils/pageWorkspace";
+import { parsePageSelection } from "../utils/pageRanges";
 import { getRenderedPageCount, renderPdfPage, type RenderedPage } from "../utils/renderPdf";
 import { navigate } from "../utils/router";
 import { Icon } from "./Icon";
@@ -65,6 +66,7 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
   const [selectedPageId, setSelectedPageId] = useState<string | undefined>();
   const [splitMode, setSplitMode] = useState<SplitMode>("every");
   const [ranges, setRanges] = useState("1-2; 3-last");
+  const [selectionRange, setSelectionRange] = useState("");
   const [rotateAngle, setRotateAngle] = useState("90");
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
@@ -80,12 +82,14 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
 
   const selectedIndexes = useMemo(() => selectedPageIndexes(pages), [pages]);
   const selectedCount = selectedIndexes.length;
+  const selectedTileCount = pages.filter((page) => page.selected).length;
+  const selectedDeletedCount = pages.filter((page) => page.selected && page.deleted).length;
   const activeCount = pages.filter((page) => !page.deleted).length;
   const deletedCount = pages.filter((page) => page.deleted).length;
   const loadedThumbs = pages.filter((page) => page.status === "ready").length;
   const selectedRangeText = selectedCount > 0 ? pageIndexesToRangeText(selectedIndexes) : "None";
   const isOrganize = tool.id === "organize-pdf";
-  const canRun = Boolean(file) && !isRunning && pages.length > 0 && !isRendering;
+  const canRun = Boolean(file) && !isRunning && pages.length > 0;
 
   useEffect(() => {
     setResults([]);
@@ -94,6 +98,7 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
     setSelectedPageId(undefined);
     setSplitMode("every");
     setRanges("1-2; 3-last");
+    setSelectionRange("");
     setRotateAngle("90");
   }, [tool.id]);
 
@@ -173,6 +178,22 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
   const setSelected = (predicate: (page: PageItem) => boolean) => {
     setPages((current) => current.map((page) => ({ ...page, selected: predicate(page) })));
     setResults([]);
+  };
+
+  const applySelectionRange = () => {
+    if (pageCount < 1) return;
+    try {
+      const indexes = parsePageSelection(selectionRange, pageCount);
+      const selected = new Set(indexes);
+      setSelected((page) => !page.deleted && selected.has(page.pageIndex));
+      setError("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not read that page range.");
+    }
+  };
+
+  const invertSelection = () => {
+    setSelected((page) => !page.deleted && !page.selected);
   };
 
   const updateSelectedPages = (update: (page: PageItem) => PageItem) => {
@@ -335,7 +356,24 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
                   <button className="button compact-button" type="button" onClick={() => setSelected(() => false)}>Clear</button>
                   <button className="button compact-button" type="button" onClick={() => setSelected((page) => !page.deleted && page.pageNumber % 2 === 1)}>Odd</button>
                   <button className="button compact-button" type="button" onClick={() => setSelected((page) => !page.deleted && page.pageNumber % 2 === 0)}>Even</button>
+                  <button className="button compact-button" type="button" onClick={invertSelection}>Invert</button>
                 </div>
+              </div>
+              <div className="page-range-selector">
+                <label className="field compact-field">
+                  <span>Select pages</span>
+                  <input
+                    aria-label="Select pages by range"
+                    value={selectionRange}
+                    placeholder="1-3, 5, last"
+                    onChange={(event) => setSelectionRange(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") applySelectionRange();
+                    }}
+                  />
+                </label>
+                <button className="button compact-button" type="button" onClick={applySelectionRange}>Apply</button>
+                <small>Use all, first, last, odd, even, or ranges like 2-6.</small>
               </div>
 
               {isOrganize ? (
@@ -404,6 +442,7 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
               rotateAngle={rotateAngle}
               selectedCount={selectedCount}
               deletedCount={deletedCount}
+              selectedDeletedCount={selectedDeletedCount}
               onSplitModeChange={setSplitMode}
               onRangesChange={setRanges}
               onRotateAngleChange={setRotateAngle}
@@ -435,7 +474,7 @@ export function PagePdfWorkspace({ tool }: PagePdfWorkspaceProps) {
               <span>Thumbnails</span>
               <strong>{loadedThumbs}/{pageCount || 0}</strong>
               <span>Selected</span>
-              <strong>{selectedCount}</strong>
+              <strong>{selectedTileCount}</strong>
               <span>Active output</span>
               <strong>{activeCount}</strong>
               <span>Removed</span>
@@ -465,6 +504,7 @@ function ToolSpecificControls({
   rotateAngle,
   selectedCount,
   deletedCount,
+  selectedDeletedCount,
   onSplitModeChange,
   onRangesChange,
   onRotateAngleChange,
@@ -481,6 +521,7 @@ function ToolSpecificControls({
   rotateAngle: string;
   selectedCount: number;
   deletedCount: number;
+  selectedDeletedCount: number;
   onSplitModeChange: (mode: SplitMode) => void;
   onRangesChange: (value: string) => void;
   onRotateAngleChange: (value: string) => void;
@@ -530,7 +571,7 @@ function ToolSpecificControls({
         </div>
         <div className="page-action-row">
           <button className="button compact-button danger-button" type="button" disabled={selectedCount === 0} onClick={onDeleteSelected}>Remove selected</button>
-          <button className="button compact-button" type="button" disabled={selectedCount === 0 || deletedCount === 0} onClick={onRestoreSelected}>Restore selected</button>
+          <button className="button compact-button" type="button" disabled={selectedDeletedCount === 0 || deletedCount === 0} onClick={onRestoreSelected}>Restore selected</button>
         </div>
         <div className="page-action-row">
           <button className="button compact-button" type="button" onClick={onReverse}>Reverse order</button>

@@ -28,7 +28,7 @@ export function PdfPreview({ file }: PdfPreviewProps) {
 
       setState({ status: "loading" });
 
-      if (file.type.startsWith("image/")) {
+      if (isBrowserSupportedImage(file)) {
         objectUrl = URL.createObjectURL(file);
         if (!cancelled) setState({ status: "image", url: objectUrl });
         return;
@@ -120,6 +120,10 @@ export function PdfPreview({ file }: PdfPreviewProps) {
   }
 
   return null;
+}
+
+function isBrowserSupportedImage(file: File): boolean {
+  return /^image\/(png|jpeg|webp|gif)$/i.test(file.type) || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
 }
 
 function CanvasThumb({ page }: { page: RenderedPage & { pageNumber: number } }) {

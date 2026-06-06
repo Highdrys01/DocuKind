@@ -30,6 +30,8 @@ const outputFormatChoices = [
   { label: "WebP", value: "webp" }
 ];
 
+const isLossyImageOutput = (options: ToolOptions) => options.outputFormat === "jpeg" || options.outputFormat === "webp";
+
 const aspectRatioChoices = [
   { label: "Free", value: "free" },
   { label: "Square", value: "1:1" },
@@ -580,7 +582,7 @@ export const tools: ToolDefinition[] = [
         showWhen: (options) => options.resizeMode !== "percent"
       },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.resizeImage)
   },
@@ -603,7 +605,7 @@ export const tools: ToolDefinition[] = [
       { name: "cropWidth", label: "Width", type: "number", defaultValue: 400, min: 1, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
       { name: "cropHeight", label: "Height", type: "number", defaultValue: 400, min: 1, max: 12000, step: 1, showWhen: (options) => !options.cropRegion },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.cropImage)
   },
@@ -634,7 +636,7 @@ export const tools: ToolDefinition[] = [
       { name: "flipX", label: "Flip horizontal", type: "checkbox", defaultValue: false },
       { name: "flipY", label: "Flip vertical", type: "checkbox", defaultValue: false },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.rotateFlipImage)
   },
@@ -674,7 +676,7 @@ export const tools: ToolDefinition[] = [
         defaultValue: "png",
         choices: [...outputFormatChoices, { label: "GIF", value: "gif" }]
       },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: (options) => options.outputFormat !== "gif" },
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput },
       { name: "gifDelay", label: "GIF delay", type: "number", defaultValue: 500, min: 20, max: 5000, step: 10, showWhen: (options) => options.outputFormat === "gif" }
     ],
     processor: () => import("./imageProcessors").then((module) => module.convertFromJpg)
@@ -699,7 +701,7 @@ export const tools: ToolDefinition[] = [
       { name: "color", label: "Color", type: "color", defaultValue: "#ffffff" },
       { name: "repeat", label: "Repeat across image", type: "checkbox", defaultValue: false },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.watermarkImage)
   },
@@ -721,7 +723,7 @@ export const tools: ToolDefinition[] = [
       { name: "textColor", label: "Text", type: "color", defaultValue: "#ffffff" },
       { name: "strokeColor", label: "Outline", type: "color", defaultValue: "#000000" },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.92, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.memeGenerator)
   },
@@ -749,7 +751,7 @@ export const tools: ToolDefinition[] = [
       { name: "grayscale", label: "Grayscale", type: "checkbox", defaultValue: false },
       { name: "sepia", label: "Sepia", type: "checkbox", defaultValue: false },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.photoEditor)
   },
@@ -766,11 +768,11 @@ export const tools: ToolDefinition[] = [
     minFiles: 1,
     options: [
       { name: "regions", label: "Regions", type: "textarea", defaultValue: "", placeholder: "10%,10%,35%,20%", help: "Drag on the preview or enter x,y,width,height. 0-100 values are treated as percentages. Separate multiple regions with semicolons." },
-      { name: "mode", label: "Mode", type: "select", defaultValue: "blur", choices: [{ label: "Blur", value: "blur" }, { label: "Redact", value: "redact" }] },
+      { name: "mode", label: "Mode", type: "select", defaultValue: "redact", choices: [{ label: "Redact", value: "redact" }, { label: "Blur", value: "blur" }] },
       { name: "blurAmount", label: "Blur amount", type: "range", defaultValue: 14, min: 1, max: 40, step: 1, showWhen: (options) => options.mode !== "redact" },
       { name: "redactColor", label: "Redact color", type: "color", defaultValue: "#111111", showWhen: (options) => options.mode === "redact" },
       { name: "outputFormat", label: "Output", type: "select", defaultValue: "png", choices: outputFormatChoices },
-      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01 }
+      { name: "quality", label: "Quality", type: "range", defaultValue: 0.9, min: 0.2, max: 0.98, step: 0.01, showWhen: isLossyImageOutput }
     ],
     processor: () => import("./imageProcessors").then((module) => module.blurRedactImage)
   }

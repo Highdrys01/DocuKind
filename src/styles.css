@@ -829,6 +829,7 @@ a {
   background: var(--panel-strong);
   border-bottom: 1px solid var(--line);
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
   padding: 12px;
@@ -852,6 +853,27 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.page-range-selector {
+  align-items: end;
+  background: var(--panel-strong);
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(180px, 280px) auto minmax(180px, 1fr);
+  padding: 0 12px 12px;
+}
+
+.compact-field {
+  gap: 4px;
+}
+
+.compact-field span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .compact-button {
@@ -1998,6 +2020,11 @@ a {
   .page-board-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .page-range-selector {
+    align-items: stretch;
+    grid-template-columns: 1fr;
   }
 
   .page-thumbnail-grid {

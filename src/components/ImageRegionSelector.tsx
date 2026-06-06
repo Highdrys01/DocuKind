@@ -78,7 +78,7 @@ export function ImageRegionSelector({
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
-    if (!file || !file.type.startsWith("image/")) {
+    if (!file || !isBrowserSupportedImage(file)) {
       setUrl("");
       setImageSize(null);
       setDidApplyDefault(false);
@@ -136,6 +136,18 @@ export function ImageRegionSelector({
   const setRegions = (nextRegions: PercentRegion[]) => {
     const next = mode === "single" ? nextRegions.slice(0, 1) : nextRegions;
     onChange({ ...options, [optionName]: formatPercentRegions(next) });
+  };
+
+  const addRegion = () => {
+    const region = clampPercentRegion(defaultRegion ?? {
+      x: 10,
+      y: 10,
+      width: mode === "single" ? 80 : 35,
+      height: mode === "single" ? 80 : 20
+    });
+    const next = mode === "multi" ? [...regions, region] : [region];
+    setRegions(next);
+    setActiveIndex(next.length - 1);
   };
 
   const commitRegion = (state: DragState) => {
@@ -288,6 +300,9 @@ export function ImageRegionSelector({
       <div className="section-heading">
         <h2>{label}</h2>
         <div className="region-toolbar">
+          <button className="button compact-button" type="button" onClick={addRegion}>
+            Add region
+          </button>
           {mode === "multi" && (
             <button className="button compact-button" type="button" disabled={!activeRegion} onClick={duplicateActiveRegion}>
               Duplicate
@@ -412,6 +427,10 @@ export function ImageRegionSelector({
       )}
     </section>
   );
+}
+
+function isBrowserSupportedImage(file: File): boolean {
+  return /^image\/(png|jpeg|webp|gif)$/i.test(file.type) || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
 }
 
 function regionStyle(region: PercentRegion): CSSProperties {

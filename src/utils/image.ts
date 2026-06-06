@@ -343,7 +343,8 @@ export async function resultFromCanvas(
   quality: number,
   summary: string
 ): Promise<ToolResult> {
-  const blob = await exportCanvas(canvas, format, quality);
+  const outputCanvas = format === "jpeg" ? flattenCanvas(canvas, "#ffffff") : canvas;
+  const blob = await exportCanvas(outputCanvas, format, quality);
   const extension = format === "jpeg" ? "jpg" : format;
   return resultFromBlob(makeOutputName(inputName, suffix, extension), blob, summary);
 }

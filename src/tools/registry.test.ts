@@ -23,4 +23,27 @@ describe("tool registry suites", () => {
       "certified-signature-local"
     ]));
   });
+
+  it("shows lossy quality controls only for JPG and WebP image outputs", () => {
+    const resizeTool = tools.find((tool) => tool.id === "resize-image");
+    const quality = resizeTool?.options.find((option) => option.name === "quality");
+
+    expect(quality?.showWhen?.({ outputFormat: "png" })).toBe(false);
+    expect(quality?.showWhen?.({ outputFormat: "jpeg" })).toBe(true);
+    expect(quality?.showWhen?.({ outputFormat: "webp" })).toBe(true);
+
+    const convertFromJpg = tools.find((tool) => tool.id === "convert-from-jpg");
+    const convertQuality = convertFromJpg?.options.find((option) => option.name === "quality");
+    expect(convertQuality?.showWhen?.({ outputFormat: "png" })).toBe(false);
+    expect(convertQuality?.showWhen?.({ outputFormat: "gif" })).toBe(false);
+    expect(convertQuality?.showWhen?.({ outputFormat: "jpeg" })).toBe(true);
+  });
+
+  it("defaults blur/redact image to redaction", () => {
+    const blurRedact = tools.find((tool) => tool.id === "blur-redact-image");
+    const mode = blurRedact?.options.find((option) => option.name === "mode");
+
+    expect(mode?.defaultValue).toBe("redact");
+    expect(mode && "choices" in mode ? mode.choices[0].value : undefined).toBe("redact");
+  });
 });
