@@ -481,7 +481,8 @@ export const tools: ToolDefinition[] = [
       },
       { name: "removeMetadata", label: "Remove metadata", type: "checkbox", defaultValue: true, showWhen: (options) => options.mode === "lossless" },
       { name: "rasterScale", label: "Raster scale", type: "range", defaultValue: 1.1, min: 0.6, max: 2.2, step: 0.1, showWhen: (options) => options.mode === "raster" },
-      { name: "jpegQuality", label: "JPG quality", type: "range", defaultValue: 0.68, min: 0.2, max: 0.95, step: 0.01, showWhen: (options) => options.mode === "raster" }
+      { name: "jpegQuality", label: "JPG quality", type: "range", defaultValue: 0.68, min: 0.2, max: 0.95, step: 0.01, showWhen: (options) => options.mode === "raster" },
+      { name: "skipLarger", label: "Skip larger output", type: "checkbox", defaultValue: true, help: "Keeps your original PDF when the rebuilt file would be larger." }
     ],
     processor: () => import("./processors").then((module) => module.compressPdf)
   },

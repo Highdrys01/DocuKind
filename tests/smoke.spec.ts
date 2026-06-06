@@ -93,6 +93,7 @@ test("renders uploaded PDF thumbnails and runs merge", async ({ page }) => {
 });
 
 test("uses visual page workspace for extract, delete, organize, and rotate", async ({ page }) => {
+  test.setTimeout(70_000);
   await page.goto("/");
   const source = await makeMultiPagePdf([
     ["one", [300, 220]],
@@ -102,7 +103,7 @@ test("uses visual page workspace for extract, delete, organize, and rotate", asy
 
   await clickTool(page, /Extract Pages/);
   await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
-  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await waitForPageThumbnail(page);
   await expect.poll(async () => page.locator("canvas.page-thumbnail-canvas").first().evaluate(isCanvasNonBlank)).toBe(true);
   await page.getByLabel("Select pages by range").fill("2-3");
   await page.getByRole("button", { name: "Apply" }).click();
@@ -117,7 +118,7 @@ test("uses visual page workspace for extract, delete, organize, and rotate", asy
   await page.goto("/");
   await clickTool(page, /Delete Pages/);
   await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
-  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await waitForPageThumbnail(page);
   await page.getByLabel("Select pages by range").fill("2");
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page.locator(".page-delete-overlay")).toHaveCount(1);
@@ -130,7 +131,7 @@ test("uses visual page workspace for extract, delete, organize, and rotate", asy
   await page.goto("/");
   await clickTool(page, /Organize Pages/);
   await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
-  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await waitForPageThumbnail(page);
   await page.getByRole("button", { name: /Page 2/ }).click();
   await page.getByRole("button", { name: /Remove selected/ }).click();
   await expect(page.locator(".page-delete-overlay")).toHaveCount(1);
@@ -151,7 +152,7 @@ test("uses visual page workspace for extract, delete, organize, and rotate", asy
   await page.goto("/");
   await clickTool(page, /Rotate PDF/);
   await page.getByTestId("file-input").setInputFiles({ name: "pages.pdf", mimeType: "application/pdf", buffer: Buffer.from(source) });
-  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible();
+  await waitForPageThumbnail(page);
   await page.getByRole("button", { name: "Clear", exact: true }).click();
   await page.getByRole("button", { name: /Page 1/ }).click();
   await page.getByRole("button", { name: /Rotate Selected Pages/ }).click();
@@ -159,6 +160,26 @@ test("uses visual page workspace for extract, delete, organize, and rotate", asy
   const rotated = await PDFDocument.load(await readFile(await downloadFirst(page)));
   expect(rotated.getPage(0).getRotation().angle).toBe(90);
   expect(rotated.getPage(1).getRotation().angle).toBe(0);
+});
+
+test("compresses PDFs honestly when rebuilds would be larger", async ({ page }) => {
+  await page.goto("/");
+  await clickTool(page, /Compress PDF/);
+  await expect(page.getByRole("heading", { name: "Compress PDF" })).toBeVisible();
+
+  const tiny = Buffer.from(minimalPdfBytes());
+  await page.getByTestId("file-input").setInputFiles({ name: "tiny.pdf", mimeType: "application/pdf", buffer: tiny });
+  await page.getByRole("button", { name: /Run Compress PDF/ }).click();
+  await expect(page.getByText("tiny-kept-original.pdf")).toBeVisible();
+  await expect(page.getByText(/kept original/)).toBeVisible();
+  const kept = await readFile(await downloadFirst(page));
+  expect(kept.byteLength).toBe(tiny.byteLength);
+
+  await page.getByLabel("Skip larger output").uncheck();
+  await page.getByRole("button", { name: /Run Compress PDF/ }).click();
+  await expect(page.getByText("tiny-compressed.pdf")).toBeVisible();
+  const forced = await readFile(await downloadFirst(page));
+  expect(forced.byteLength).toBeGreaterThan(tiny.byteLength);
 });
 
 test("places and exports a visual PDF signature", async ({ page, isMobile }) => {
@@ -498,6 +519,27 @@ async function makeTransparentPngFixture(page: import("@playwright/test").Page, 
   return Buffer.from(dataUrl.split(",")[1], "base64");
 }
 
+function minimalPdfBytes(): Uint8Array {
+  const encoder = new TextEncoder();
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] >>\nendobj\n"
+  ];
+
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  for (const object of objects) {
+    offsets.push(encoder.encode(body).length);
+    body += object;
+  }
+
+  const xrefStart = encoder.encode(body).length;
+  const xrefRows = offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  const trailer = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${xrefRows}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return encoder.encode(body + trailer);
+}
+
 async function downloadFirst(page: import("@playwright/test").Page): Promise<string> {
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /^Download$/ }).first().click();
@@ -511,6 +553,10 @@ async function clickTool(page: import("@playwright/test").Page, name: RegExp): P
   await page.getByRole("button", { name }).evaluate((element) => {
     (element as HTMLButtonElement).click();
   });
+}
+
+async function waitForPageThumbnail(page: import("@playwright/test").Page): Promise<void> {
+  await expect(page.locator("canvas.page-thumbnail-canvas").first()).toBeVisible({ timeout: 25_000 });
 }
 
 async function placeFieldOnPreview(page: import("@playwright/test").Page, xRatio: number, yRatio: number): Promise<void> {

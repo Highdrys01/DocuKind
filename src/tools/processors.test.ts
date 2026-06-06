@@ -119,6 +119,21 @@ describe("PDF processors", () => {
     expect(result.summary).toContain("Lossless rebuild");
   });
 
+  it("keeps the original PDF when lossless compression would be larger", async () => {
+    const file = new File([uint8ArrayToArrayBuffer(minimalPdfBytes())], "tiny.pdf", { type: "application/pdf" });
+    const [skipped] = await compressPdf([file], { mode: "lossless" });
+
+    expect(skipped.filename).toBe("tiny-kept-original.pdf");
+    expect(skipped.blob.size).toBe(file.size);
+    expect(skipped.summary).toContain("kept original");
+    expect(skipped.summary).toContain("Turn off Skip larger output");
+
+    const [forced] = await compressPdf([file], { mode: "lossless", skipLarger: false });
+    expect(forced.filename).toBe("tiny-compressed.pdf");
+    expect(forced.blob.size).toBeGreaterThan(file.size);
+    expect(forced.summary).toContain("Lossless rebuild");
+  });
+
   it("signs PDFs with multiple visual placement types", async () => {
     const file = await makePdf("visual-sign", 2);
     const [result] = await signPdf([file], {
@@ -173,4 +188,25 @@ function pngBytes(): Uint8Array {
 
 function pngDataUrl(): string {
   return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+}
+
+function minimalPdfBytes(): Uint8Array {
+  const encoder = new TextEncoder();
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] >>\nendobj\n"
+  ];
+
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  for (const object of objects) {
+    offsets.push(encoder.encode(body).length);
+    body += object;
+  }
+
+  const xrefStart = encoder.encode(body).length;
+  const xrefRows = offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  const trailer = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${xrefRows}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return encoder.encode(body + trailer);
 }

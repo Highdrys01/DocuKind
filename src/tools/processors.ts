@@ -409,8 +409,9 @@ export const compressPdf: ToolProcessor = async ([file], options, context) => {
   requireFile(file);
 
   const mode = stringOption(options.mode, "lossless");
+  const skipLarger = booleanOption(options.skipLarger, true);
   if (mode === "raster") {
-    return [await rasterCompress(file, options, context)];
+    return [await rasterCompress(file, options, skipLarger, context)];
   }
 
   setProgress(context, `Reading ${file.name}`);
@@ -425,10 +426,10 @@ export const compressPdf: ToolProcessor = async ([file], options, context) => {
   }
 
   const bytes = await doc.save({ useObjectStreams: true });
-  return [resultFromBytes(makeOutputName(file.name, "compressed"), bytes, compressionSummary(file.size, bytes.length, "Lossless rebuild"))];
+  return [compressionResult(file, bytes, "compressed", "Lossless rebuild", skipLarger)];
 };
 
-async function rasterCompress(file: File, options: ToolOptions, context?: ToolRunContext): Promise<ToolResult> {
+async function rasterCompress(file: File, options: ToolOptions, skipLarger: boolean, context?: ToolRunContext): Promise<ToolResult> {
   setProgress(context, `Reading ${file.name}`);
   const source = await loadPdf(file);
   const output = await PDFDocument.create();
@@ -447,11 +448,7 @@ async function rasterCompress(file: File, options: ToolOptions, context?: ToolRu
   }
 
   const bytes = await output.save({ useObjectStreams: true });
-  return resultFromBytes(
-    makeOutputName(file.name, "raster-compressed"),
-    bytes,
-    `${compressionSummary(file.size, bytes.length, "Raster rebuild")} Selectable text is not preserved.`
-  );
+  return compressionResult(file, bytes, "raster-compressed", "Raster rebuild", skipLarger, "Selectable text is not preserved.");
 }
 
 function setProgress(context: ToolRunContext | undefined, message: string): void {
@@ -705,4 +702,21 @@ function compressionSummary(inputBytes: number, outputBytes: number, label: stri
   }
 
   return `${label}: output is ${formatBytes(outputBytes)}. Some PDFs are already optimized.`;
+}
+
+function compressionResult(
+  file: File,
+  bytes: Uint8Array,
+  suffix: string,
+  label: string,
+  skipLarger: boolean,
+  note = ""
+): ToolResult {
+  if (skipLarger && bytes.length > file.size) {
+    const summary = `${label}: kept original ${formatBytes(file.size)} because the rebuilt output would be larger (${formatBytes(bytes.length)}). Turn off Skip larger output to download it anyway.`;
+    return resultFromBlob(makeOutputName(file.name, "kept-original"), file.slice(0, file.size, file.type || "application/pdf"), note ? `${summary} ${note}` : summary);
+  }
+
+  const summary = compressionSummary(file.size, bytes.length, label);
+  return resultFromBytes(makeOutputName(file.name, suffix), bytes, note ? `${summary} ${note}` : summary);
 }
